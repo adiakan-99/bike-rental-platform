@@ -5,12 +5,10 @@ import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import com.bikerental.auth_service.entity.User;
+import com.bikerental.auth_service.entity.Role;
 
 @Repository
-public interface UserRepository extends JpaRepository<User, Integer> {
-	Optional<User> findByEmail(String email);
+public interface RoleRepository extends JpaRepository<Role, Integer> {
 
-	Boolean existsByEmail(String email);
-
+	Optional<Role> findByName(String name);
 }
