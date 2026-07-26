@@ -62,13 +62,14 @@ public class AuthController {
 
 	}
 
-	/*
-	 * @GetMapping("/me") private ResponseEntity<UserProfileResponse>
-	 * getCurrentUser(Authentication authentication) {
-	 * 
-	 * String email = authentication.getName();
-	 * 
-	 * return ResponseEntity.ok(userService.getCurrentUser(email)); }
-	 */
+	@GetMapping("/me")
+	private ResponseEntity<UserProfileResponse> getCurrentUser(Authentication authentication) {
+
+		String email = authentication.getName();
+
+		UserProfileResponse response = userService.getCurrentUser(email);
+
+		return ResponseEntity.ok(response);
+	}
 
 }

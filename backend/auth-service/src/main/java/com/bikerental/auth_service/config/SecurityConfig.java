@@ -30,14 +30,21 @@ public class SecurityConfig {
 	}
 
 	@Bean
-	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-		http.cors(cors -> cors.configurationSource(corsConfigurationSource())).csrf(csrf -> csrf.disable())
-				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+	public SecurityFilterChain securityFilterChain(HttpSecurity http)
+			throws Exception {
+		http.cors(cors -> cors.configurationSource(corsConfigurationSource()))
+				.csrf(csrf -> csrf.disable())
+				.sessionManagement(session -> session
+						.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 				.authorizeHttpRequests(auth -> auth
-						.requestMatchers("/api/v1/auth/register", "/api/v1/auth/login", "/v3/api-docs/**", "/swagger-ui/**")
-						.permitAll().requestMatchers("/auth/me").authenticated().requestMatchers("/bike/**")
-						.authenticated().anyRequest().authenticated())
-				.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+						.requestMatchers("/api/v1/auth/register",
+								"/api/v1/auth/login", "/v3/api-docs/**",
+								"/swagger-ui/**")
+						.permitAll().requestMatchers("/auth/me").authenticated()
+						.requestMatchers("/bike/**").authenticated()
+						.anyRequest().authenticated())
+				.addFilterBefore(jwtAuthenticationFilter,
+						UsernamePasswordAuthenticationFilter.class);
 
 		return http.build();
 
@@ -46,10 +53,15 @@ public class SecurityConfig {
 	@Bean
 	public CorsConfigurationSource corsConfigurationSource() {
 		CorsConfiguration configuration = new CorsConfiguration();
-		configuration.setAllowedOrigins(List.of("http://localhost:5173", "http://localhost:3000")); // React dev server
-																									// URLs
-		configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-		configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Requested-With"));
+		configuration.setAllowedOrigins(
+				List.of("http://localhost:5173", "http://localhost:3000")); // React
+																			// dev
+																			// server
+																			// URLs
+		configuration.setAllowedMethods(
+				List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+		configuration.setAllowedHeaders(
+				List.of("Authorization", "Content-Type", "X-Requested-With"));
 		configuration.setAllowCredentials(true);
 
 		UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
@@ -58,7 +70,8 @@ public class SecurityConfig {
 	}
 
 	@Bean
-	public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+	public AuthenticationManager authenticationManager(
+			AuthenticationConfiguration config) throws Exception {
 		return config.getAuthenticationManager();
 	}
 
