@@ -1,6 +1,8 @@
 package com.bikerental.auth_service.service;
 
 import java.util.Date;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import javax.crypto.SecretKey;
 
@@ -39,8 +41,11 @@ public class JwtService {
 
 	public String generateToken(User user) {
 
-		String role = user.getUserRoles().stream().findFirst().get().getRole().getName();
-		return Jwts.builder().subject(user.getEmail()).claim("userId", user.getUserId()).claim("roles", role)
+		Set<String> roles = user.getUserRoles().stream()
+				.map(userRole -> userRole.getRole().getName())
+				.collect(Collectors.toSet());
+
+		return Jwts.builder().subject(user.getEmail()).claim("userId", user.getUserId()).claim("roles", roles)
 				.claim("firstName", user.getFirstName()).issuedAt(new Date())
 				.expiration(new Date(System.currentTimeMillis() + jwtExpiration)).signWith(getSigningKey()).compact();
 

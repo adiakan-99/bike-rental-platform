@@ -59,6 +59,7 @@ public class PartnerServicesImpl implements PartnerServices {
 
         objPartnerPayoutAccount.setCreatedAt(OffsetDateTime.now());
         objPartnerPayoutAccount.setPartner(savedPartner);
+        objPartnerPayoutAccount.setIsPrimary(true);
 
         payoutAccountRepository.save(objPartnerPayoutAccount);
 
@@ -68,7 +69,8 @@ public class PartnerServicesImpl implements PartnerServices {
             for (PartnerDocumentUploadDto partnerDocumentUploadDto : partnerCreationRequestDto.getDocuments()) {
                 PartnerDocument partnerDocument = new PartnerDocument();
                 BeanUtils.copyProperties(partnerDocumentUploadDto, partnerDocument);
-                partnerDocument.setStatus("PENDING");
+                partnerDocument.setPartner(savedPartner);
+                partnerDocument.setUploadedAt(OffsetDateTime.now());
                 partnerDocuments.add(partnerDocument);
             }
 
@@ -160,7 +162,6 @@ public class PartnerServicesImpl implements PartnerServices {
             String secureViewUrl = storageServices.getFileDownloadUrl(doc.getFileUrl());
 
             dto.setFileUrl(secureViewUrl);
-            dto.setStatus(doc.getStatus());
             dto.setExpiresAt(doc.getExpiresAt());
             return dto;
         }).toList();

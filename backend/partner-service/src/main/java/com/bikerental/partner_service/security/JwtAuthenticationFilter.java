@@ -19,6 +19,7 @@ import javax.crypto.SecretKey;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Component
@@ -54,9 +55,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     .parseSignedClaims(token) // Replaces parseClaimsJws()
                     .getPayload(); // Replaces getBody()
 
+            System.out.println(claims);
+
             // Extract Data (userId and roles)
             Integer userId = claims.get("userId", Integer.class);
-            List<String> roles = claims.get("role", List.class);
+            List<String> roles = claims.get("roles", List.class);
+
+            for (String role : roles) {
+                System.out.println(roles);
+            }
+
 
             // Convert string roles into Spring Security Authorities
             List<SimpleGrantedAuthority> authorities = roles.stream()
@@ -68,7 +76,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     new UsernamePasswordAuthenticationToken(userId, null, authorities);
 
             SecurityContextHolder.getContext().setAuthentication(authToken);
-
         } catch (Exception e) {
             SecurityContextHolder.clearContext();
         }

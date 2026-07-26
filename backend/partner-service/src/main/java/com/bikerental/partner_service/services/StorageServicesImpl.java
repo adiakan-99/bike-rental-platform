@@ -20,7 +20,7 @@ public class StorageServicesImpl implements StorageServices {
     private final MinioClient minioClient;
 
     private static final List<String> ALLOWED_CONTENT_TYPES = List.of(
-            "image/jpeg", "image/png", "image/webp", "application/pdf"
+            "image/jpeg", "image/png", "image/webp", "application/pdf", "image/jpg"
     );
 
     public StorageServicesImpl(MinioClient minioClient) {
