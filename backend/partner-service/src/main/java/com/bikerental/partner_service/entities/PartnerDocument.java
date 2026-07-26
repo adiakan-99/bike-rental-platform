@@ -39,23 +39,8 @@ public class PartnerDocument {
     @Column(name = "file_url", nullable = false, length = 500)
     private String fileUrl;
 
-    @Size(max = 20)
-    @NotNull
-    @ColumnDefault("'PENDING'")
-    @Column(name = "status", nullable = false, length = 20)
-    private String status;
-
     @Column(name = "expires_at")
     private LocalDate expiresAt;
-
-    @Column(name = "verified_by")
-    private Integer verifiedBy;
-
-    @Column(name = "verified_at")
-    private OffsetDateTime verifiedAt;
-
-    @Column(name = "reject_note", length = Integer.MAX_VALUE)
-    private String rejectNote;
 
     @NotNull
     @ColumnDefault("now()")

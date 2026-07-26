@@ -9,6 +9,7 @@ import org.hibernate.annotations.ColumnDefault;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.List;
 
 @Getter
 @Setter
@@ -161,5 +162,12 @@ public class Partner {
     @Column(name = "deleted_at")
     private OffsetDateTime deletedAt;
 
+    @OneToMany(mappedBy = "partner", cascade = CascadeType.ALL)
+    private List<PartnerDocument> documents;
 
+    // Add this helper method
+    public void addDocument(PartnerDocument document) {
+        this.documents.add(document);
+        document.setPartner(this); // This links the child back to the parent
+    }
 }
