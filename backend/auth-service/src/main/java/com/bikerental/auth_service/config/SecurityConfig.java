@@ -40,7 +40,10 @@ public class SecurityConfig {
 						.requestMatchers("/api/v1/auth/register",
 								"/api/v1/auth/login", "/v3/api-docs/**",
 								"/swagger-ui/**", "/swagger-ui.html")
-						.permitAll().requestMatchers("/api/v1/auth/me").authenticated()
+						.permitAll().requestMatchers("/api/v1/auth/me")
+						.authenticated()
+						.requestMatchers("/api/v1/internal/users/")
+						.authenticated()
 						.requestMatchers("/api/v1/auth/password")
 						.authenticated().anyRequest().authenticated())
 				.addFilterBefore(jwtAuthenticationFilter,
