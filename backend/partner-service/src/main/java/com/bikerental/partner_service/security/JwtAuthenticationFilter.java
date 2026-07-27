@@ -50,21 +50,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             // Parse and Validate using the new 0.12.x syntax
             Claims claims = Jwts.parser()
-                    .verifyWith(secretKey) // Replaces parserBuilder().setSigningKey()
+                    .verifyWith(secretKey)
                     .build()
-                    .parseSignedClaims(token) // Replaces parseClaimsJws()
-                    .getPayload(); // Replaces getBody()
-
-            System.out.println(claims);
+                    .parseSignedClaims(token)
+                    .getPayload();
 
             // Extract Data (userId and roles)
             Integer userId = claims.get("userId", Integer.class);
             List<String> roles = claims.get("roles", List.class);
-
-            for (String role : roles) {
-                System.out.println(roles);
-            }
-
 
             // Convert string roles into Spring Security Authorities
             List<SimpleGrantedAuthority> authorities = roles.stream()

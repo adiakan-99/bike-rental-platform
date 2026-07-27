@@ -12,8 +12,5 @@ public class PartnerDocumentDto {
     private String docType;
     private String fileUrl;
     private LocalDate expiresAt;
-    private Integer verifiedBy;
-    private OffsetDateTime verifiedAt;
-    private String rejectNote;
 
 }

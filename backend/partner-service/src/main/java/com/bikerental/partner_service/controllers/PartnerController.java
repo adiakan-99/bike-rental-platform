@@ -56,4 +56,45 @@ public class PartnerController {
     public ResponseEntity<PartnerPublicDto> getPublicPartnerProfile(@PathVariable Integer id) {
         return ResponseEntity.ok(partnerServices.getPublicPartnerProfile(id));
     }
+
+    @GetMapping("/me")
+    public ResponseEntity<PartnerProfileResponseDto> getMyProfile() {
+        Integer userId = getAuthenticatedUserId();
+        List<String> roles = getAuthenticatedUserRoles();
+
+        return ResponseEntity.ok(partnerServices.getMyProfile(userId, roles));
+    }
+
+    @GetMapping("/me/documents")
+    public ResponseEntity<List<PartnerDocumentDto>> getMyDocuments() {
+        Integer userId = getAuthenticatedUserId();
+        List<String> roles = getAuthenticatedUserRoles();
+
+        return ResponseEntity.ok(partnerServices.getMyDocuments(userId, roles));
+    }
+
+    @PutMapping("/me")
+    public ResponseEntity<PartnerProfileResponseDto> updateMyProfile(
+            @Valid @RequestBody PartnerUpdateRequestDto requestDto) {
+
+        Integer userId = getAuthenticatedUserId();
+        List<String> roles = getAuthenticatedUserRoles();
+
+        return ResponseEntity.ok(partnerServices.updateMyProfile(userId, requestDto, roles));
+    }
+
+    @PutMapping("/me/documents")
+    public ResponseEntity<PartnerDocumentDto> updateMyDocuments(
+            @Valid @RequestBody PartnerDocumentUpdateRequestDto requestDto) {
+        Integer userId = getAuthenticatedUserId();
+
+        return ResponseEntity.ok(partnerServices.updatePartnerDocument(userId, requestDto));
+    }
+
+    @PutMapping("/me/payout")
+    public ResponseEntity<PartnerPayoutResponseDto> updatePartnerPayout(
+            @Valid @RequestBody PartnerPayoutRequestDto requestDto) {
+        Integer userId = getAuthenticatedUserId();
+        return ResponseEntity.ok(partnerServices.upsertPartnerPayout(userId, requestDto));
+    }
 }
