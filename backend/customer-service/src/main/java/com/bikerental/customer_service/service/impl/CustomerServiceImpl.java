@@ -24,31 +24,70 @@ public class CustomerServiceImpl implements CustomerService {
 
     private final UserRepository userRepository;
 
+//    @Override
+//    public CustomerResponseDTO createCustomer(CustomerRequestDTO request, Integer userId) {
+//        if (customerRepository.findByUserId(userId).isPresent()) {
+//            throw new CustomerAlreadyExistsException(userId);
+//        }
+//        User user = userRepository.findById(userId).orElseThrow(()->new UserNotFoundException(userId));
+//
+//        Customer customer = new Customer();
+//
+//        customer.setUserId(userId);
+//        mapRequestToCustomer(customer, request);
+//
+//        customer.setJoiningDate(OffsetDateTime.now());
+//        customer.setUpdatedAt(OffsetDateTime.now());
+//        customer.setAccountStatus("ACTIVE");
+//
+//        Customer savedCustomer = customerRepository.save(customer);
+//
+//        return mapToResponse(savedCustomer, user);
+//    }
+
     @Override
-    public CustomerResponseDTO createCustomer(CustomerRequestDTO request, Integer userId) {
-        if (customerRepository.findByUserId(userId).isPresent()) {
-            throw new CustomerAlreadyExistsException(userId);
-        }
-        User user = userRepository.findById(userId).orElseThrow(()->new UserNotFoundException(userId));
+    public CustomerResponseDTO getCustomerById(Integer userId) {
 
-        Customer customer = new Customer();
+        Customer customer = customerRepository.findByUserId(userId)
+                .orElseThrow(() -> new CustomerNotFoundException(userId));
 
-        customer.setUserId(userId);
-        mapRequestToCustomer(customer, request);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException(userId));
 
-        customer.setJoiningDate(OffsetDateTime.now());
-        customer.setUpdatedAt(OffsetDateTime.now());
-        customer.setAccountStatus("ACTIVE");
-
-        Customer savedCustomer = customerRepository.save(customer);
-
-        return mapToResponse(savedCustomer, user);
+        return mapToResponse(customer, user);
     }
 
     @Override
-    public CustomerResponseDTO getCustomerById(Integer id) {
-        Customer customer = customerRepository.findById(id)
-                .orElseThrow(() -> new CustomerNotFoundException(id));
+    public List<CustomerResponseDTO> getAllCustomers() {
+
+        List<Customer> customers = customerRepository.findAll();
+
+        return customers.stream()
+                .map(customer -> {
+                    User user = userRepository.findById(customer.getUserId())
+                            .orElseThrow(() ->
+                                    new UserNotFoundException(customer.getUserId()));
+
+                    return mapToResponse(customer, user);
+                })
+                .toList();
+    }
+
+    @Override
+    public CustomerResponseDTO updateCustomer(Integer userId, CustomerRequestDTO request) {
+        Customer customer = customerRepository.findByUserId(userId)
+                .orElseThrow(() -> new CustomerNotFoundException(userId));
+
+        customer.setAddressLine1(request.getAddressLine1());
+        customer.setAddressLine2(request.getAddressLine2());
+        customer.setCity(request.getCity());
+        customer.setState(request.getState());
+        customer.setPincode(request.getPincode());
+        customer.setEmergencyContact(request.getEmergencyContact());
+        customer.setReferralCode(request.getReferralCode());
+        customer.setUpdatedAt(OffsetDateTime.now());
+
+        customerRepository.save(customer);
 
         User user = userRepository.findById(customer.getUserId())
                 .orElseThrow(() -> new UserNotFoundException(customer.getUserId()));
@@ -57,18 +96,19 @@ public class CustomerServiceImpl implements CustomerService {
     }
 
     @Override
-    public List<CustomerResponseDTO> getAllCustomers() {
-        return List.of();
-    }
+    public CustomerResponseDTO deleteCustomer(Integer userId) {
 
-    @Override
-    public CustomerResponseDTO updateCustomer(Integer id, CustomerRequestDTO request) {
-        return null;
-    }
+        Customer customer = customerRepository.findByUserId(userId)
+                .orElseThrow(() -> new CustomerNotFoundException(userId));
 
-    @Override
-    public void deleteCustomer(Integer id) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException(userId));
 
+        CustomerResponseDTO response = mapToResponse(customer, user);
+
+        customerRepository.delete(customer);
+
+        return response;
     }
 
     private CustomerResponseDTO mapToResponse(Customer customer, User user) {
