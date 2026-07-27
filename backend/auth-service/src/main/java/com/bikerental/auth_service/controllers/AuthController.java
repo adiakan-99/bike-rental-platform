@@ -8,12 +8,16 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.bikerental.auth_service.dto.ChangePasswordRequest;
+import com.bikerental.auth_service.dto.ForgotPasswordRequest;
 import com.bikerental.auth_service.dto.LoginRequest;
 import com.bikerental.auth_service.dto.RegisterRequest;
+import com.bikerental.auth_service.dto.ResetPasswordRequest;
 import com.bikerental.auth_service.dto.UserProfileResponse;
 import com.bikerental.auth_service.service.AuthenticationService;
 import com.bikerental.auth_service.service.CaptchaService;
@@ -31,8 +35,8 @@ public class AuthController {
 
 	private final CaptchaService captchaService;
 
-	public AuthController(AuthenticationService authenticationService, UserService userService,
-			CaptchaService captchaService) {
+	public AuthController(AuthenticationService authenticationService,
+			UserService userService, CaptchaService captchaService) {
 		this.authenticationService = authenticationService;
 		this.userService = userService;
 		this.captchaService = captchaService;
@@ -40,16 +44,20 @@ public class AuthController {
 
 	@PostMapping("/register")
 	@CrossOrigin(origins = "http://localhost:5173")
-	public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest request) {
+	public ResponseEntity<?> register(
+			@Valid @RequestBody RegisterRequest request) {
 
-		boolean isHuman = captchaService.verifyCaptcha(request.getCaptchaToken());
+		boolean isHuman = captchaService
+				.verifyCaptcha(request.getCaptchaToken());
 
 		if (!isHuman) {
 			return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-					.body(Map.of("message", "CAPTCHA verification failed. Please try again"));
+					.body(Map.of("message",
+							"CAPTCHA verification failed. Please try again"));
 		}
 
-		return ResponseEntity.status(HttpStatus.CREATED).body(authenticationService.register(request));
+		return ResponseEntity.status(HttpStatus.CREATED)
+				.body(authenticationService.register(request));
 	}
 
 	@PostMapping("/login")
@@ -63,13 +71,44 @@ public class AuthController {
 	}
 
 	@GetMapping("/me")
-	private ResponseEntity<UserProfileResponse> getCurrentUser(Authentication authentication) {
+	public ResponseEntity<UserProfileResponse> getCurrentUser(
+			Authentication authentication) {
 
 		String email = authentication.getName();
 
 		UserProfileResponse response = userService.getCurrentUser(email);
 
 		return ResponseEntity.ok(response);
+	}
+
+	@PutMapping("/password")
+	public ResponseEntity<?> changePassword(
+			@RequestBody ChangePasswordRequest request,
+			Authentication authenctication) {
+
+		String email = authenctication.getName();
+
+		userService.changePassword(email, request);
+
+		return ResponseEntity.ok("Password Updated Successfully");
+
+	}
+
+	@PostMapping("/forgot-password")
+	public ResponseEntity<?> forgotPassword(
+			@RequestBody ForgotPasswordRequest request) {
+
+		return ResponseEntity.ok(
+				"If an account exists, a password reset link has been sent");
+
+	}
+
+	public ResponseEntity<?> resetPassword(
+			@RequestBody ResetPasswordRequest request) {
+
+		userService.resetPassword(request);
+
+		return ResponseEntity.ok("Password reset successfully ");
 	}
 
 }
