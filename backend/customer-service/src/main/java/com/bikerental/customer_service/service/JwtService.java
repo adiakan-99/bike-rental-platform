@@ -48,9 +48,17 @@ public class JwtService {
     public boolean isTokenValid(String token) {
 
         try {
+
             Date expiry = extractClaims(token).getExpiration();
+
+            System.out.println("Expiry : " + expiry);
+
             return expiry.after(new Date());
+
         } catch (Exception e) {
+
+            e.printStackTrace();   // <-- IMPORTANT
+
             return false;
         }
     }

@@ -9,6 +9,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import com.bikerental.customer_service.security.JwtUser;
 import com.bikerental.customer_service.service.JwtService;
 
 import jakarta.servlet.FilterChain;
@@ -31,24 +32,40 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String authHeader = request.getHeader("Authorization");
 
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
 
-            String token = authHeader.substring(7);
+        String token = authHeader.substring(7);
+
+        try {
 
             if (jwtService.isTokenValid(token)) {
 
-                Integer userId = jwtService.extractUserId(token);
-                String role = jwtService.extractRole(token);
+                JwtUser jwtUser = new JwtUser(
+                        jwtService.extractUserId(token),
+                        jwtService.extractUsername(token),
+                        jwtService.extractFirstName(token),
+                        jwtService.extractRole(token)
+                );
 
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(
-                                userId,
+                                jwtUser,
                                 null,
-                                List.of(new SimpleGrantedAuthority(role))
+                                List.of(
+                                        new SimpleGrantedAuthority(
+                                                "ROLE_" + jwtUser.getRole()
+                                        )
+                                )
                         );
 
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             }
+
+        } catch (Exception e) {
+            e.printStackTrace();
         }
 
         filterChain.doFilter(request, response);
