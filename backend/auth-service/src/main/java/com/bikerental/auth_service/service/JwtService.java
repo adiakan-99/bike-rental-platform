@@ -41,9 +41,10 @@ public class JwtService {
 
 	public String generateToken(User user) {
 
-		Set<String> roles = user.getUserRoles().stream()
-				.map(userRole -> userRole.getRole().getName())
+		Set<String> roles = user.getUserRoles().stream().map(userRole -> userRole.getRole().getName())
 				.collect(Collectors.toSet());
+
+		System.out.println(roles);
 
 		return Jwts.builder().subject(user.getEmail()).claim("userId", user.getUserId()).claim("roles", roles)
 				.claim("firstName", user.getFirstName()).issuedAt(new Date())
