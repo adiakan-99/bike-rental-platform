@@ -6,10 +6,11 @@ import com.bikerental.auth_service.dto.ChangePasswordRequest;
 import com.bikerental.auth_service.dto.ResetPasswordRequest;
 import com.bikerental.auth_service.dto.UserProfileResponse;
 import com.bikerental.auth_service.entity.User;
+import com.bikerental.auth_service.enums.AccountStatus;
 
 public interface UserService {
 
-	User getUserById(Integer id);
+	UserProfileResponse getUserById(Integer id);
 
 	List<User> getAllUser();
 
@@ -24,4 +25,10 @@ public interface UserService {
 	void forgotPassword(String email);
 
 	void resetPassword(ResetPasswordRequest request);
+
+	void addRole(Integer userId, String roleName);
+
+	void removeRole(Integer userId, String roleName);
+
+	void updateAccountStatus(Integer userId, AccountStatus accountStatus);
 }

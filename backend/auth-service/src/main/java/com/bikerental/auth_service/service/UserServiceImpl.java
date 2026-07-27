@@ -12,11 +12,22 @@ import com.bikerental.auth_service.dto.ChangePasswordRequest;
 import com.bikerental.auth_service.dto.ResetPasswordRequest;
 import com.bikerental.auth_service.dto.UserProfileResponse;
 import com.bikerental.auth_service.entity.PasswordResetToken;
+import com.bikerental.auth_service.entity.Role;
 import com.bikerental.auth_service.entity.User;
+import com.bikerental.auth_service.entity.UserRole;
+import com.bikerental.auth_service.entity.UserRoleId;
+import com.bikerental.auth_service.enums.AccountStatus;
+import com.bikerental.auth_service.exception.ResourceNotFoundException;
 import com.bikerental.auth_service.repository.PasswordResetTokenRepository;
+import com.bikerental.auth_service.repository.RoleRepository;
 import com.bikerental.auth_service.repository.UserRepository;
+import com.bikerental.auth_service.repository.UserRoleRepository;
+import com.bikerental.auth_service.util.UserMapper;
+
+import lombok.AllArgsConstructor;
 
 @Service
+@AllArgsConstructor
 public class UserServiceImpl implements UserService {
 
 	private final UserRepository userRepository;
@@ -25,18 +36,18 @@ public class UserServiceImpl implements UserService {
 
 	private final PasswordResetTokenRepository passwordResetTokenRepository;
 
-	public UserServiceImpl(UserRepository userRepository,
-			PasswordEncoder passwordencoder,
-			PasswordResetTokenRepository passwordResetTokenRepository) {
-		this.userRepository = userRepository;
-		this.passwordEncoder = passwordencoder;
-		this.passwordResetTokenRepository = passwordResetTokenRepository;
-	}
+	private final RoleRepository roleRepository;
+
+	private final UserRoleRepository userRoleRepository;
 
 	@Override
-	public User getUserById(Integer id) {
+	public UserProfileResponse getUserById(Integer id) {
 		// TODO Auto-generated method stub
-		return null;
+
+		User user = userRepository.findById(id).orElseThrow(
+				() -> new ResourceNotFoundException("User not found"));
+
+		return UserMapper.toDTO(user);
 	}
 
 	@Override
@@ -157,6 +168,60 @@ public class UserServiceImpl implements UserService {
 		token.setUsed(true);
 
 		passwordResetTokenRepository.save(token);
+
+	}
+
+	@Override
+	public void addRole(Integer userId, String roleName) {
+
+		User user = userRepository.findById(userId).orElseThrow(
+				() -> new ResourceNotFoundException(" User Not Found"));
+
+		Role role = roleRepository.findByName(roleName).orElseThrow(
+				() -> new ResourceNotFoundException("Role Not found"));
+
+		UserRoleId userRoleId = new UserRoleId(user.getUserId(),
+				role.getRoleId());
+
+		if (userRoleRepository.existsById(userRoleId)) {
+			return;
+		}
+
+		UserRole userRole = new UserRole();
+		userRole.setId(userRoleId);
+		userRole.setRole(role);
+		userRole.setUser(user);
+		userRole.setAssignedAt(LocalDateTime.now());
+
+		userRoleRepository.save(userRole);
+
+	}
+
+	@Override
+	public void removeRole(Integer userId, String roleName) {
+
+		User user = userRepository.findById(userId).orElseThrow(
+				() -> new ResourceNotFoundException("User Does not Exists"));
+
+		Role role = roleRepository.findByName(roleName).orElseThrow(
+				() -> new ResourceNotFoundException("Role Not assigned"));
+
+		UserRoleId userRoleId = new UserRoleId(user.getUserId(),
+				role.getRoleId());
+
+		userRoleRepository.deleteById(userRoleId);
+
+	}
+
+	@Override
+	public void updateAccountStatus(Integer userId,
+			AccountStatus accountStatus) {
+		User user = userRepository.findById(userId).orElseThrow(
+				() -> new ResourceNotFoundException("User Does not exists"));
+
+		user.setAccountStatus(accountStatus);
+
+		userRepository.save(user);
 
 	}
 
