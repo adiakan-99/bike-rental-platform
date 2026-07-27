@@ -23,4 +23,10 @@ public class BikeDetailRequestDTO {
     @Min(value = 1990, message = "Invalid manufacturing year")
     @Max(value = 2100, message = "Invalid manufacturing year")
     private Integer manufacturingYear;
+
+    @NotNull(message = "Seating capacity is required")
+    @Positive(message = "Seating capacity must be positive")
+    private Integer seatingCapacity;
+
+    private String color;
 }

@@ -3,7 +3,9 @@ package com.bikerental.bike_service.service;
 import com.bikerental.bike_service.dto.request.BikeCreateRequestDTO;
 import com.bikerental.bike_service.dto.response.BikeResponseDTO;
 import com.bikerental.bike_service.entity.Bike;
+import com.bikerental.bike_service.entity.BikeDetail;
 import com.bikerental.bike_service.entity.Insurance;
+import com.bikerental.bike_service.repository.BikeDetailRepository;
 import com.bikerental.bike_service.repository.BikeRepository;
 import com.bikerental.bike_service.repository.InsuranceRepository;
 import org.springframework.stereotype.Service;
@@ -17,11 +19,15 @@ public class BikeServiceImpl implements BikeService {
 
     private final BikeRepository bikeRepository;
     private final InsuranceRepository insuranceRepository;
+    private final BikeDetailRepository bikeDetailRepository;
+
 
     public BikeServiceImpl(BikeRepository bikeRepository,
-                           InsuranceRepository insuranceRepository) {
+                           InsuranceRepository insuranceRepository,
+                           BikeDetailRepository bikeDetailRepository) {
         this.bikeRepository = bikeRepository;
         this.insuranceRepository = insuranceRepository;
+        this.bikeDetailRepository = bikeDetailRepository;
     }
 
     @Override
@@ -65,6 +71,36 @@ public class BikeServiceImpl implements BikeService {
 
         // Save
         Bike savedBike = bikeRepository.save(bike);
+
+        //bikeDetails start
+
+        BikeDetail bikeDetail = new BikeDetail();
+
+        bikeDetail.setBike(savedBike);
+
+        bikeDetail.setBikeCategory(
+                request.getBikeDetail().getCategory());
+
+        bikeDetail.setBikeType(
+                request.getBikeDetail().getFuelType());
+
+        bikeDetail.setEngineCc(
+                request.getBikeDetail().getEngineCC());
+
+        bikeDetail.setTransmission(
+                request.getBikeDetail().getTransmission());
+
+        bikeDetail.setYearOfManufacture(
+                request.getBikeDetail().getManufacturingYear());
+
+        bikeDetail.setSeatingCapacity(
+                request.getBikeDetail().getSeatingCapacity());
+
+        bikeDetail.setColor(
+                request.getBikeDetail().getColor());
+        
+        bikeDetailRepository.save(bikeDetail);
+        //bikeDetails end
 
         // Response
         BikeResponseDTO response = new BikeResponseDTO();

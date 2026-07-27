@@ -61,6 +61,4 @@ public class BikeDetail {
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "additional_specs")
     private Map<String, Object> additionalSpecs;
-
-
 }
