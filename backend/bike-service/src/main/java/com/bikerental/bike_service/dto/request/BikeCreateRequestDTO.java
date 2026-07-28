@@ -47,19 +47,15 @@ public class BikeCreateRequestDTO {
     @DecimalMin(value = "0.0", message = "Extra KM charge cannot be negative")
     private BigDecimal extraKmCharge;
 
-//    @Valid
     @NotNull(message = "Bike details are required")
     private BikeDetailRequestDTO bikeDetail;
 
-//    @Valid
     @NotNull(message = "Documents are required")
     private DocumentRequestDTO documents;
 
-//    @Valid
     @NotEmpty(message = "At least one bike image is required")
     private List<BikeImageRequestDTO> images;
 
-//    @Valid
     private List<SpecificationDTO> specifications;
 
 
