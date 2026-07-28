@@ -24,26 +24,26 @@ public class CustomerServiceImpl implements CustomerService {
 
     private final UserRepository userRepository;
 
-//    @Override
-//    public CustomerResponseDTO createCustomer(CustomerRequestDTO request, Integer userId) {
-//        if (customerRepository.findByUserId(userId).isPresent()) {
-//            throw new CustomerAlreadyExistsException(userId);
-//        }
-//        User user = userRepository.findById(userId).orElseThrow(()->new UserNotFoundException(userId));
-//
-//        Customer customer = new Customer();
-//
-//        customer.setUserId(userId);
-//        mapRequestToCustomer(customer, request);
-//
-//        customer.setJoiningDate(OffsetDateTime.now());
-//        customer.setUpdatedAt(OffsetDateTime.now());
-//        customer.setAccountStatus("ACTIVE");
-//
-//        Customer savedCustomer = customerRepository.save(customer);
-//
-//        return mapToResponse(savedCustomer, user);
-//    }
+   @Override
+   public CustomerResponseDTO createCustomer(CustomerRequestDTO request, Integer userId) {
+       if (customerRepository.findByUserId(userId).isPresent()) {
+           throw new CustomerAlreadyExistsException(userId);
+       }
+       User user = userRepository.findById(userId).orElseThrow(()->new UserNotFoundException(userId));
+
+       Customer customer = new Customer();
+
+       customer.setUserId(userId);
+       mapRequestToCustomer(customer, request);
+
+       customer.setJoiningDate(OffsetDateTime.now());
+       customer.setUpdatedAt(OffsetDateTime.now());
+       customer.setAccountStatus("ACTIVE");
+
+       Customer savedCustomer = customerRepository.save(customer);
+
+       return mapToResponse(savedCustomer, user);
+   }
 
     @Override
     public CustomerResponseDTO getCustomerById(Integer userId) {
