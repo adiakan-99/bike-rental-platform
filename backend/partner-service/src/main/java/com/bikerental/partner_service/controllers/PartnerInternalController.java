@@ -1,6 +1,6 @@
 package com.bikerental.partner_service.controllers;
 
-import com.bikerental.partner_service.dto.PartnerStatusResponseDto;
+import com.bikerental.partner_service.dto.response.PartnerStatusResponseDto;
 import com.bikerental.partner_service.services.PartnerInternalServices;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;

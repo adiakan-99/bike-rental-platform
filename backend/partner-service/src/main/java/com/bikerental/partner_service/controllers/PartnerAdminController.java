@@ -1,9 +1,9 @@
 package com.bikerental.partner_service.controllers;
 
-import com.bikerental.partner_service.dto.PartnerAdminActionResponseDto;
-import com.bikerental.partner_service.dto.PartnerApprovalRequestDto;
-import com.bikerental.partner_service.dto.PartnerBlockRequestDto;
-import com.bikerental.partner_service.dto.PartnerSummaryDto;
+import com.bikerental.partner_service.dto.response.PartnerAdminActionResponseDto;
+import com.bikerental.partner_service.dto.request.PartnerApprovalRequestDto;
+import com.bikerental.partner_service.dto.request.PartnerBlockRequestDto;
+import com.bikerental.partner_service.dto.response.PartnerSummaryDto;
 import com.bikerental.partner_service.services.PartnerAdminServices;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;

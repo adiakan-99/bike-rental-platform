@@ -1,7 +1,10 @@
 package com.bikerental.partner_service.services;
 
-import com.bikerental.partner_service.dto.*;
-import jakarta.transaction.Transactional;
+import com.bikerental.partner_service.dto.request.PartnerCreationRequestDto;
+import com.bikerental.partner_service.dto.request.PartnerDocumentUpdateRequestDto;
+import com.bikerental.partner_service.dto.request.PartnerPayoutRequestDto;
+import com.bikerental.partner_service.dto.request.PartnerUpdateRequestDto;
+import com.bikerental.partner_service.dto.response.*;
 
 import java.util.List;
 

@@ -1,6 +1,6 @@
 package com.bikerental.partner_service.exceptions;
 
-import com.bikerental.partner_service.dto.ErrorResponse;
+import com.bikerental.partner_service.dto.response.ErrorResponse;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

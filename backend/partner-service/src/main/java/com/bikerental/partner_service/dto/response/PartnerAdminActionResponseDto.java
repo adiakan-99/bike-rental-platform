@@ -1,6 +1,5 @@
-package com.bikerental.partner_service.dto;
+package com.bikerental.partner_service.dto.response;
 
-import lombok.Builder;
 import lombok.Data;
 
 import java.time.LocalDateTime;

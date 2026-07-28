@@ -1,9 +1,12 @@
 package com.bikerental.partner_service.services;
 
-import com.bikerental.partner_service.dto.PartnerAdminActionResponseDto;
-import com.bikerental.partner_service.dto.PartnerApprovalRequestDto;
-import com.bikerental.partner_service.dto.PartnerBlockRequestDto;
-import com.bikerental.partner_service.dto.PartnerSummaryDto;
+import com.bikerental.partner_service.client.AuthServiceClient;
+import com.bikerental.partner_service.dto.request.internal.UserAddRoleRequestDto;
+import com.bikerental.partner_service.dto.request.internal.UserStatusUpdateRequestDto;
+import com.bikerental.partner_service.dto.response.PartnerAdminActionResponseDto;
+import com.bikerental.partner_service.dto.request.PartnerApprovalRequestDto;
+import com.bikerental.partner_service.dto.request.PartnerBlockRequestDto;
+import com.bikerental.partner_service.dto.response.PartnerSummaryDto;
 import com.bikerental.partner_service.entities.Partner;
 import com.bikerental.partner_service.exceptions.ResourceNotFoundException;
 import com.bikerental.partner_service.repositories.PartnerRepository;
@@ -22,9 +25,12 @@ import java.time.OffsetDateTime;
 public class PartnerAdminServicesImpl implements PartnerAdminServices {
 
     private final PartnerRepository partnerRepository;
+    private final AuthServiceClient authServiceClient;
 
-    public PartnerAdminServicesImpl(PartnerRepository partnerRepository) {
+    public PartnerAdminServicesImpl(PartnerRepository partnerRepository,
+                                    AuthServiceClient authServiceClient) {
         this.partnerRepository = partnerRepository;
+        this.authServiceClient = authServiceClient;
     }
 
     @Override
@@ -45,6 +51,11 @@ public class PartnerAdminServicesImpl implements PartnerAdminServices {
 
         if (requestDto.getApprovalStatus().equals("APPROVED")) {
             objPartner.setRejectionReason(null);
+
+            UserAddRoleRequestDto dto = new UserAddRoleRequestDto();
+            dto.setRole("PARTNER");
+
+            authServiceClient.addUserRole(objPartner.getUserId(), dto);
 
             message = "Partner approved by admin";
         } else {
@@ -71,7 +82,8 @@ public class PartnerAdminServicesImpl implements PartnerAdminServices {
         Partner objPartner = partnerRepository.findById(partnerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Partner not found with ID: " + partnerId));
 
-        if (!objPartner.getAccountStatus().equals("SUSPENDED")) {
+
+        if (objPartner.getAccountStatus().equals("SUSPENDED")) {
             throw new IllegalStateException("Account status is already SUSPENDED");
         }
 
@@ -85,6 +97,11 @@ public class PartnerAdminServicesImpl implements PartnerAdminServices {
         partnerRepository.save(objPartner);
 
         // invoke auth service method
+        authServiceClient.deleteUserRole(objPartner.getUserId(), "PARTNER");
+        UserStatusUpdateRequestDto dto = new UserStatusUpdateRequestDto();
+        dto.setAccountStatus("BLOCKED");
+
+        authServiceClient.updateUserStatus(objPartner.getUserId(), dto);
 
         PartnerAdminActionResponseDto responseDto = new PartnerAdminActionResponseDto();
         responseDto.setPartnerId(objPartner.getId());
@@ -128,7 +145,7 @@ public class PartnerAdminServicesImpl implements PartnerAdminServices {
     @Override
     @Transactional
     public PartnerAdminActionResponseDto unblockPartner(Integer partnerId, Integer adminId) {
-        Partner objPartner = partnerRepository.findByUserId(partnerId)
+        Partner objPartner = partnerRepository.findById(partnerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Partner not found with ID: " + partnerId));
 
         if (!objPartner.getAccountStatus().equals("SUSPENDED")) {
@@ -141,6 +158,12 @@ public class PartnerAdminServicesImpl implements PartnerAdminServices {
         partnerRepository.save(objPartner);
 
         // call to the auth service
+        UserStatusUpdateRequestDto statusUpdateRequestDto = new UserStatusUpdateRequestDto();
+        statusUpdateRequestDto.setAccountStatus("ACTIVE");
+        authServiceClient.updateUserStatus(objPartner.getUserId(), statusUpdateRequestDto);
+        UserAddRoleRequestDto addRoleRequestDto = new UserAddRoleRequestDto();
+        addRoleRequestDto.setRole("PARTNER");
+        authServiceClient.addUserRole(objPartner.getUserId(), addRoleRequestDto);
 
         PartnerAdminActionResponseDto responseDto = new PartnerAdminActionResponseDto();
         responseDto.setPartnerId(objPartner.getId());

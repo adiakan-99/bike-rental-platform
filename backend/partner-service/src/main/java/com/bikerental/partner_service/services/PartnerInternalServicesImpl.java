@@ -1,6 +1,6 @@
 package com.bikerental.partner_service.services;
 
-import com.bikerental.partner_service.dto.PartnerStatusResponseDto;
+import com.bikerental.partner_service.dto.response.PartnerStatusResponseDto;
 import com.bikerental.partner_service.entities.Partner;
 import com.bikerental.partner_service.exceptions.ResourceNotFoundException;
 import com.bikerental.partner_service.repositories.PartnerRepository;

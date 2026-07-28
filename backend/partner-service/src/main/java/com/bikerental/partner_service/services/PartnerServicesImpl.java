@@ -1,6 +1,12 @@
 package com.bikerental.partner_service.services;
 
-import com.bikerental.partner_service.dto.*;
+import com.bikerental.partner_service.client.AuthServiceClient;
+import com.bikerental.partner_service.dto.request.PartnerCreationRequestDto;
+import com.bikerental.partner_service.dto.request.PartnerDocumentUpdateRequestDto;
+import com.bikerental.partner_service.dto.request.PartnerPayoutRequestDto;
+import com.bikerental.partner_service.dto.request.PartnerUpdateRequestDto;
+import com.bikerental.partner_service.dto.request.internal.UserStatusUpdateRequestDto;
+import com.bikerental.partner_service.dto.response.*;
 import com.bikerental.partner_service.entities.Partner;
 import com.bikerental.partner_service.entities.PartnerDocument;
 import com.bikerental.partner_service.entities.PartnerPayoutAccount;
@@ -28,15 +34,18 @@ public class PartnerServicesImpl implements PartnerServices {
     private final PartnerPayoutAccountRepository payoutAccountRepository;
     private final PartnerDocumentRepository documentRepository;
     private final StorageServices storageServices;
+    private final AuthServiceClient authServiceClient;
 
     public PartnerServicesImpl(PartnerRepository partnerRepository,
                                PartnerPayoutAccountRepository accountRepository,
                                PartnerDocumentRepository documentRepository,
-                               StorageServices storageServices) {
+                               StorageServices storageServices,
+                               AuthServiceClient authServiceClient) {
         this.partnerRepository = partnerRepository;
         this.payoutAccountRepository = accountRepository;
         this.documentRepository = documentRepository;
         this.storageServices = storageServices;
+        this.authServiceClient = authServiceClient;
     }
 
     @Override
@@ -81,11 +90,15 @@ public class PartnerServicesImpl implements PartnerServices {
             documentRepository.saveAll(partnerDocuments);
         }
 
+        UserStatusUpdateRequestDto dto = new UserStatusUpdateRequestDto();
+        dto.setAccountStatus(savedPartner.getAccountStatus());
+
+        authServiceClient.updateUserStatus(userId, dto);
+
         PartnerCreationResponseDto partnerCreationResponseDto = new PartnerCreationResponseDto();
         partnerCreationResponseDto.setPartnerId(savedPartner.getId());
         partnerCreationResponseDto.setSellerType(savedPartner.getSellerType());
         partnerCreationResponseDto.setApprovalStatus(savedPartner.getApprovalStatus());
-
         return partnerCreationResponseDto;
     }
 
@@ -108,6 +121,7 @@ public class PartnerServicesImpl implements PartnerServices {
         // 4. Map Entity to DTO (Manual mapping shown here)
         PartnerProfileResponseDto response = new PartnerProfileResponseDto();
         BeanUtils.copyProperties(partner, response);
+        response.setPartnerId(partner.getId());
         // response.setBusinessName(partner.getBusinessName()); // Set other fields...
 
         PartnerPayoutDto payoutDto = new PartnerPayoutDto();
@@ -202,6 +216,7 @@ public class PartnerServicesImpl implements PartnerServices {
             objPartner.setApprovalStatus("PENDING");
 
             // auth service client to revoke partner privilege
+            authServiceClient.deleteUserRole(authenticatedUserId, "PARTNER");
         }
 
         partnerRepository.save(objPartner);
@@ -223,13 +238,15 @@ public class PartnerServicesImpl implements PartnerServices {
             objPartner.setRejectionReason(null);
 
             // auth service client to revoke partner privileges
+            authServiceClient.deleteUserRole(authenticatedUserId, "PARTNER");
         }
 
         documentRepository.save(document);
         partnerRepository.save(objPartner);
 
         PartnerDocumentDto responseDto = new PartnerDocumentDto();
-        BeanUtils.copyProperties(objPartner, responseDto);
+        BeanUtils.copyProperties(document, responseDto);
+        responseDto.setDocumentId(document.getId());
 
         return responseDto;
     }
@@ -242,7 +259,7 @@ public class PartnerServicesImpl implements PartnerServices {
         PartnerPayoutAccount payoutAccount = payoutAccountRepository.findByPartnerId(objPartner.getId())
                 .orElse(new PartnerPayoutAccount());
 
-        BeanUtils.copyProperties(objPartner, payoutAccount, getNullPropertyNames(requestDto));
+        BeanUtils.copyProperties(requestDto, payoutAccount, getNullPropertyNames(requestDto));
         payoutAccount.setPartner(objPartner);
         payoutAccount.setIsPrimary(true);
         payoutAccount.setCreatedAt(OffsetDateTime.now());
@@ -253,7 +270,8 @@ public class PartnerServicesImpl implements PartnerServices {
         String masked = rawAcc.length() > 4 ? "XXXX-XXXX-" + rawAcc.substring(rawAcc.length() - 4) : "XXXX";
 
         PartnerPayoutResponseDto responseDto = new PartnerPayoutResponseDto();
-        BeanUtils.copyProperties(payoutAccount, responseDto);
+        BeanUtils.copyProperties(savedAccount, responseDto);
+        responseDto.setId(savedAccount.getId());
         responseDto.setMaskedAccountNumber(masked);
 
         return responseDto;
