@@ -14,44 +14,48 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/customers")
+@RequestMapping("/api/v1/customers")
 @RequiredArgsConstructor
+@CrossOrigin(origins = {"http://localhost:3000",
+		"http://localhost:5173"}, allowCredentials = "true")
 public class CustomerController {
-    private final CustomerService customerService;
+	private final CustomerService customerService;
 
-    @GetMapping("/{id}")
-    public ResponseEntity<CustomerResponseDTO> getCustomerById(@PathVariable Integer id) {
-        return ResponseEntity.ok(customerService.getCustomerById(id));
-    }
+	@GetMapping("/{id}")
+	public ResponseEntity<CustomerResponseDTO> getCustomerById(
+			@PathVariable Integer id) {
+		return ResponseEntity.ok(customerService.getCustomerById(id));
+	}
 
-    @GetMapping
-    public ResponseEntity<List<CustomerResponseDTO>> getAllCustomers() {
-        return ResponseEntity.ok(customerService.getAllCustomers());
-    }
+	@GetMapping("/all")
+	public ResponseEntity<List<CustomerResponseDTO>> getAllCustomers() {
+		return ResponseEntity.ok(customerService.getAllCustomers());
+	}
 
-    @PutMapping("/{userId}")
-    public ResponseEntity<CustomerResponseDTO> updateCustomer(
-            @PathVariable Integer userId,
-            @Valid @RequestBody CustomerRequestDTO requestDTO) {
+	@PutMapping("/{userId}")
+	public ResponseEntity<CustomerResponseDTO> updateCustomer(
+			@PathVariable Integer userId,
+			@Valid @RequestBody CustomerRequestDTO requestDTO) {
 
-        return ResponseEntity.ok(customerService.updateCustomer(userId, requestDTO));
-    }
+		return ResponseEntity
+				.ok(customerService.updateCustomer(userId, requestDTO));
+	}
 
-    @DeleteMapping("/{userId}")
-    public ResponseEntity<CustomerResponseDTO> deleteCustomer(
-            @PathVariable Integer userId) {
+	@DeleteMapping("/{userId}")
+	public ResponseEntity<CustomerResponseDTO> deleteCustomer(
+			@PathVariable Integer userId) {
 
-        return ResponseEntity.ok(customerService.deleteCustomer(userId));
-    }
+		return ResponseEntity.ok(customerService.deleteCustomer(userId));
+	}
 
-    @GetMapping("/me")
-    public ResponseEntity<CustomerResponseDTO> getMyProfile(
-            Authentication authentication) {
+	@GetMapping("/me")
+	public ResponseEntity<CustomerResponseDTO> getMyProfile(
+			Authentication authentication) {
 
-        JwtUser user = (JwtUser) authentication.getPrincipal();
+		JwtUser user = (JwtUser) authentication.getPrincipal();
+		System.out.println(user.getUserId());
 
-        return ResponseEntity.ok(
-                customerService.getCustomerById(user.getUserId())
-        );
-    }
+		return ResponseEntity
+				.ok(customerService.getCustomerById(user.getUserId()));
+	}
 }

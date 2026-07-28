@@ -9,7 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/kyc")
+@RequestMapping("/api/v1/kyc")
 @RequiredArgsConstructor
 public class UserKycController {
 

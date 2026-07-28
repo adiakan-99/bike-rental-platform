@@ -1,6 +1,7 @@
 package com.bikerental.customer_service.service;
 
 import java.util.Date;
+import java.util.List;
 
 import javax.crypto.SecretKey;
 
@@ -14,53 +15,51 @@ import io.jsonwebtoken.security.Keys;
 @Service
 public class JwtService {
 
-    @Value("${jwt.secret}")
-    private String secretKey;
+	@Value("${jwt.secret}")
+	private String secretKey;
 
-    private SecretKey getSigningKey() {
-        return Keys.hmacShaKeyFor(secretKey.getBytes());
-    }
+	private SecretKey getSigningKey() {
+		return Keys.hmacShaKeyFor(secretKey.getBytes());
+	}
 
-    public Claims extractClaims(String token) {
-        return Jwts.parser()
-                .verifyWith(getSigningKey())
-                .build()
-                .parseSignedClaims(token)
-                .getPayload();
-    }
+	public Claims extractClaims(String token) {
+		return Jwts.parser().verifyWith(getSigningKey()).build()
+				.parseSignedClaims(token).getPayload();
+	}
 
-    public String extractUsername(String token) {
-        return extractClaims(token).getSubject();
-    }
+	public String extractUsername(String token) {
+		return extractClaims(token).getSubject();
+	}
 
-    public Integer extractUserId(String token) {
-        return extractClaims(token).get("userId", Integer.class);
-    }
+	public Integer extractUserId(String token) {
+		return extractClaims(token).get("userId", Integer.class);
+	}
 
-    public String extractRole(String token) {
-        return extractClaims(token).get("roles", String.class);
-    }
+	public List<String> extractRoles(String token) {
+		Claims claims = extractClaims(token);
+		return claims.get("roles", List.class);
+	}
 
-    public String extractFirstName(String token) {
-        return extractClaims(token).get("firstName", String.class);
-    }
+	public String extractFirstName(String token) {
+		return extractClaims(token).get("firstName", String.class);
+	}
 
-    public boolean isTokenValid(String token) {
+	public boolean isTokenValid(String token) {
 
-        try {
+		try {
 
-            Date expiry = extractClaims(token).getExpiration();
+			Date expiry = extractClaims(token).getExpiration();
 
-            System.out.println("Expiry : " + expiry);
+			System.out.println("Expiry : " + expiry);
 
-            return expiry.after(new Date());
+			return expiry.after(new Date());
 
-        } catch (Exception e) {
+		} catch (Exception e) {
 
-            e.printStackTrace();   // <-- IMPORTANT
+			e.printStackTrace(); // <-- IMPORTANT
 
-            return false;
-        }
-    }
+			return false;
+		}
+	}
 
 }

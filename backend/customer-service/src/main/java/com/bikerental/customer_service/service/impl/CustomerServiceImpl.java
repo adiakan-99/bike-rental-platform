@@ -1,145 +1,113 @@
 package com.bikerental.customer_service.service.impl;
 
+import java.time.OffsetDateTime;
+import java.util.List;
+
+import org.springframework.stereotype.Service;
+
 import com.bikerental.customer_service.dto.CustomerRequestDTO;
 import com.bikerental.customer_service.dto.CustomerResponseDTO;
 import com.bikerental.customer_service.entity.Customer;
-import com.bikerental.customer_service.entity.User;
 import com.bikerental.customer_service.exception.CustomerAlreadyExistsException;
 import com.bikerental.customer_service.exception.CustomerNotFoundException;
-import com.bikerental.customer_service.exception.UserNotFoundException;
 import com.bikerental.customer_service.repository.CustomerRepository;
-import com.bikerental.customer_service.repository.UserRepository;
 import com.bikerental.customer_service.service.CustomerService;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
 
-import java.time.OffsetDateTime;
-import java.util.List;
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
 public class CustomerServiceImpl implements CustomerService {
 
-    private final CustomerRepository customerRepository;
+	private final CustomerRepository customerRepository;
 
-    private final UserRepository userRepository;
+	@Override
+	public CustomerResponseDTO createCustomer(CustomerRequestDTO request,
+			Integer userId) {
+		if (customerRepository.findByUserId(userId).isPresent()) {
+			throw new CustomerAlreadyExistsException(userId);
+		}
 
-//    @Override
-//    public CustomerResponseDTO createCustomer(CustomerRequestDTO request, Integer userId) {
-//        if (customerRepository.findByUserId(userId).isPresent()) {
-//            throw new CustomerAlreadyExistsException(userId);
-//        }
-//        User user = userRepository.findById(userId).orElseThrow(()->new UserNotFoundException(userId));
-//
-//        Customer customer = new Customer();
-//
-//        customer.setUserId(userId);
-//        mapRequestToCustomer(customer, request);
-//
-//        customer.setJoiningDate(OffsetDateTime.now());
-//        customer.setUpdatedAt(OffsetDateTime.now());
-//        customer.setAccountStatus("ACTIVE");
-//
-//        Customer savedCustomer = customerRepository.save(customer);
-//
-//        return mapToResponse(savedCustomer, user);
-//    }
+		Customer customer = new Customer();
+		customer.setUserId(userId);
+		mapRequestToCustomer(customer, request);
 
-    @Override
-    public CustomerResponseDTO getCustomerById(Integer userId) {
+		customer.setJoiningDate(OffsetDateTime.now());
+		customer.setUpdatedAt(OffsetDateTime.now());
+		customer.setAccountStatus("ACTIVE");
 
-        Customer customer = customerRepository.findByUserId(userId)
-                .orElseThrow(() -> new CustomerNotFoundException(userId));
+		Customer savedCustomer = customerRepository.save(customer);
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new UserNotFoundException(userId));
+		return mapToResponse(savedCustomer);
+	}
 
-        return mapToResponse(customer, user);
-    }
+	@Override
+	public CustomerResponseDTO getCustomerById(Integer customerId) {
+		Customer customer = customerRepository.findById(customerId)
+				.orElseThrow(() -> new CustomerNotFoundException(customerId));
 
-    @Override
-    public List<CustomerResponseDTO> getAllCustomers() {
+		return mapToResponse(customer);
+	}
 
-        List<Customer> customers = customerRepository.findAll();
+	@Override
+	public List<CustomerResponseDTO> getAllCustomers() {
+		List<Customer> customers = customerRepository.findAll();
 
-        return customers.stream()
-                .map(customer -> {
-                    User user = userRepository.findById(customer.getUserId())
-                            .orElseThrow(() ->
-                                    new UserNotFoundException(customer.getUserId()));
+		return customers.stream().map(this::mapToResponse).toList();
+	}
 
-                    return mapToResponse(customer, user);
-                })
-                .toList();
-    }
+	@Override
+	public CustomerResponseDTO updateCustomer(Integer customerId,
+			CustomerRequestDTO request) {
+		Customer customer = customerRepository.findById(customerId)
+				.orElseThrow(() -> new CustomerNotFoundException(customerId));
 
-    @Override
-    public CustomerResponseDTO updateCustomer(Integer userId, CustomerRequestDTO request) {
-        Customer customer = customerRepository.findByUserId(userId)
-                .orElseThrow(() -> new CustomerNotFoundException(userId));
+		mapRequestToCustomer(customer, request);
+		customer.setUpdatedAt(OffsetDateTime.now());
 
-        customer.setAddressLine1(request.getAddressLine1());
-        customer.setAddressLine2(request.getAddressLine2());
-        customer.setCity(request.getCity());
-        customer.setState(request.getState());
-        customer.setPincode(request.getPincode());
-        customer.setEmergencyContact(request.getEmergencyContact());
-        customer.setReferralCode(request.getReferralCode());
-        customer.setUpdatedAt(OffsetDateTime.now());
+		Customer updatedCustomer = customerRepository.save(customer);
 
-        customerRepository.save(customer);
+		return mapToResponse(updatedCustomer);
+	}
 
-        User user = userRepository.findById(customer.getUserId())
-                .orElseThrow(() -> new UserNotFoundException(customer.getUserId()));
+	@Override
+	public CustomerResponseDTO deleteCustomer(Integer customerId) {
+		Customer customer = customerRepository.findById(customerId)
+				.orElseThrow(() -> new CustomerNotFoundException(customerId));
 
-        return mapToResponse(customer, user);
-    }
+		CustomerResponseDTO response = mapToResponse(customer);
 
-    @Override
-    public CustomerResponseDTO deleteCustomer(Integer userId) {
+		customerRepository.delete(customer);
 
-        Customer customer = customerRepository.findByUserId(userId)
-                .orElseThrow(() -> new CustomerNotFoundException(userId));
+		return response;
+	}
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new UserNotFoundException(userId));
+	private CustomerResponseDTO mapToResponse(Customer customer) {
+		CustomerResponseDTO response = new CustomerResponseDTO();
 
-        CustomerResponseDTO response = mapToResponse(customer, user);
+		response.setCustomerId(customer.getId());
+		response.setUserId(customer.getUserId());
+		response.setAddressLine1(customer.getAddressLine1());
+		response.setAddressLine2(customer.getAddressLine2());
+		response.setCity(customer.getCity());
+		response.setState(customer.getState());
+		response.setPincode(customer.getPincode());
+		response.setEmergencyContact(customer.getEmergencyContact());
+		response.setReferralCode(customer.getReferralCode());
+		response.setAccountStatus(customer.getAccountStatus());
+		response.setJoiningDate(customer.getJoiningDate());
 
-        customerRepository.delete(customer);
+		return response;
+	}
 
-        return response;
-    }
-
-    private CustomerResponseDTO mapToResponse(Customer customer, User user) {
-
-        CustomerResponseDTO response = new CustomerResponseDTO();
-
-        response.setCustomerId(customer.getId());
-        response.setUserId(customer.getUserId());
-        response.setFirstName(user.getFirstName());
-        response.setLastName(user.getLastName());
-        response.setEmail(user.getEmail());
-        response.setPhoneNumber(user.getPhoneNumber());
-        response.setAddressLine1(customer.getAddressLine1());
-        response.setCity(customer.getCity());
-        response.setState(customer.getState());
-        response.setPincode(customer.getPincode());
-        response.setAccountStatus(customer.getAccountStatus());
-        response.setJoiningDate(customer.getJoiningDate());
-
-        return response;
-    }
-
-    private void mapRequestToCustomer(Customer customer,
-                                      CustomerRequestDTO request) {
-
-        customer.setAddressLine1(request.getAddressLine1());
-        customer.setAddressLine2(request.getAddressLine2());
-        customer.setCity(request.getCity());
-        customer.setState(request.getState());
-        customer.setPincode(request.getPincode());
-        customer.setEmergencyContact(request.getEmergencyContact());
-        customer.setReferralCode(request.getReferralCode());
-    }
+	private void mapRequestToCustomer(Customer customer,
+			CustomerRequestDTO request) {
+		customer.setAddressLine1(request.getAddressLine1());
+		customer.setAddressLine2(request.getAddressLine2());
+		customer.setCity(request.getCity());
+		customer.setState(request.getState());
+		customer.setPincode(request.getPincode());
+		customer.setEmergencyContact(request.getEmergencyContact());
+		customer.setReferralCode(request.getReferralCode());
+	}
 }

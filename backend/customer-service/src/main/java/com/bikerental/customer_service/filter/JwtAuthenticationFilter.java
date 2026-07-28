@@ -2,6 +2,7 @@ package com.bikerental.customer_service.filter;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -22,52 +23,56 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-    private final JwtService jwtService;
+	private final JwtService jwtService;
 
-    @Override
-    protected void doFilterInternal(HttpServletRequest request,
-                                    HttpServletResponse response,
-                                    FilterChain filterChain)
-            throws ServletException, IOException {
+	@Override
+	protected void doFilterInternal(HttpServletRequest request,
+			HttpServletResponse response, FilterChain filterChain)
+			throws ServletException, IOException {
 
-        String authHeader = request.getHeader("Authorization");
+		String authHeader = request.getHeader("Authorization");
 
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            filterChain.doFilter(request, response);
-            return;
-        }
+		if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+			filterChain.doFilter(request, response);
+			return;
+		}
 
-        String token = authHeader.substring(7);
+		String token = authHeader.substring(7);
 
-        try {
+		if (!jwtService.isTokenValid(token)) {
 
-            if (jwtService.isTokenValid(token)) {
+			filterChain.doFilter(request, response);
 
-                JwtUser jwtUser = new JwtUser(
-                        jwtService.extractUserId(token),
-                        jwtService.extractUsername(token),
-                        jwtService.extractFirstName(token),
-                        jwtService.extractRole(token)
-                );
+			return;
 
-                UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(
-                                jwtUser,
-                                null,
-                                List.of(
-                                        new SimpleGrantedAuthority(
-                                                "ROLE_" + jwtUser.getRole()
-                                        )
-                                )
-                        );
+		}
 
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-            }
+		try {
+			Integer userId = jwtService.extractUserId(token);
 
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+			String email = jwtService.extractUsername(token);
 
-        filterChain.doFilter(request, response);
-    }
+			String firstName = jwtService.extractFirstName(token);
+
+			List<String> roles = jwtService.extractRoles(token);
+
+			JwtUser jwtUser = new JwtUser(userId, email, firstName, roles);
+
+			List<SimpleGrantedAuthority> authorities = roles.stream()
+					.map(role -> new SimpleGrantedAuthority("ROLE_" + role))
+					.toList();
+
+			UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+					jwtUser, null, authorities);
+
+			SecurityContextHolder.getContext()
+					.setAuthentication(authentication);
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			SecurityContextHolder.clearContext();
+		}
+
+		filterChain.doFilter(request, response);
+
+	}
 }

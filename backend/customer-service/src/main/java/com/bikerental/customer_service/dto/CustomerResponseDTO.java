@@ -14,9 +14,13 @@ public class CustomerResponseDTO {
     private String email;
     private String phoneNumber;
     private String addressLine1;
+    private String addressLine2;
     private String city;
     private String state;
+    private String emergencyContact;
+    private String referralCode;
     private String pincode;
     private String accountStatus;
     private OffsetDateTime joiningDate;
+    
 }

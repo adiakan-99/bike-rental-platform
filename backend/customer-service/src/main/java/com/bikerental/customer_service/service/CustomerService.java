@@ -9,11 +9,17 @@ public interface CustomerService {
 
     //CustomerResponseDTO createCustomer(CustomerRequestDTO request, Integer userId);
 
-    CustomerResponseDTO getCustomerById(Integer userId);
+//    CustomerResponseDTO getCustomerById(CustomerRequestDTO request, Integer userId);
 
     CustomerResponseDTO updateCustomer(Integer userId, CustomerRequestDTO request);
 
     List<CustomerResponseDTO> getAllCustomers();
 
     CustomerResponseDTO  deleteCustomer(Integer userId);
+
+	CustomerResponseDTO createCustomer(
+			CustomerRequestDTO request,
+			Integer userId);
+
+	CustomerResponseDTO getCustomerById(Integer customerId);
 }
