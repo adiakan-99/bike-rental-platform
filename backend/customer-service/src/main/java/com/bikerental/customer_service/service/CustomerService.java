@@ -8,6 +8,7 @@ import com.bikerental.customer_service.dto.CustomerResponseDTO;
 
 public interface CustomerService {
 
+    CustomerResponseDTO createCustomer(CustomerRequestDTO request, Integer userId);
     void createCustomer(CreateCustomerRequest request);
 
 //    CustomerResponseDTO getCustomerById(CustomerRequestDTO request, Integer userId);
