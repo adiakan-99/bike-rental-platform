@@ -1,9 +1,14 @@
 package com.bikerental.partner_service.controllers;
 
-import com.bikerental.partner_service.dto.*;
+import com.bikerental.partner_service.dto.request.PartnerCreationRequestDto;
+import com.bikerental.partner_service.dto.request.PartnerDocumentUpdateRequestDto;
+import com.bikerental.partner_service.dto.request.PartnerPayoutRequestDto;
+import com.bikerental.partner_service.dto.request.PartnerUpdateRequestDto;
+import com.bikerental.partner_service.dto.response.*;
 import com.bikerental.partner_service.services.PartnerServices;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -33,7 +38,7 @@ public class PartnerController {
 
         PartnerCreationResponseDto responseDto = partnerServices.onboardPartner(requestDto, userId);
 
-        return ResponseEntity.ok(responseDto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(responseDto);
     }
 
     @GetMapping("/{id}")
@@ -55,5 +60,46 @@ public class PartnerController {
     @GetMapping("/public/{id}")
     public ResponseEntity<PartnerPublicDto> getPublicPartnerProfile(@PathVariable Integer id) {
         return ResponseEntity.ok(partnerServices.getPublicPartnerProfile(id));
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<PartnerProfileResponseDto> getMyProfile() {
+        Integer userId = getAuthenticatedUserId();
+        List<String> roles = getAuthenticatedUserRoles();
+
+        return ResponseEntity.ok(partnerServices.getMyProfile(userId, roles));
+    }
+
+    @GetMapping("/me/documents")
+    public ResponseEntity<List<PartnerDocumentDto>> getMyDocuments() {
+        Integer userId = getAuthenticatedUserId();
+        List<String> roles = getAuthenticatedUserRoles();
+
+        return ResponseEntity.ok(partnerServices.getMyDocuments(userId, roles));
+    }
+
+    @PutMapping("/me")
+    public ResponseEntity<PartnerProfileResponseDto> updateMyProfile(
+            @Valid @RequestBody PartnerUpdateRequestDto requestDto) {
+
+        Integer userId = getAuthenticatedUserId();
+        List<String> roles = getAuthenticatedUserRoles();
+
+        return ResponseEntity.ok(partnerServices.updateMyProfile(userId, requestDto, roles));
+    }
+
+    @PutMapping("/me/documents")
+    public ResponseEntity<PartnerDocumentDto> updateMyDocuments(
+            @Valid @RequestBody PartnerDocumentUpdateRequestDto requestDto) {
+        Integer userId = getAuthenticatedUserId();
+
+        return ResponseEntity.ok(partnerServices.updatePartnerDocument(userId, requestDto));
+    }
+
+    @PutMapping("/me/payout")
+    public ResponseEntity<PartnerPayoutResponseDto> updatePartnerPayout(
+            @Valid @RequestBody PartnerPayoutRequestDto requestDto) {
+        Integer userId = getAuthenticatedUserId();
+        return ResponseEntity.ok(partnerServices.upsertPartnerPayout(userId, requestDto));
     }
 }

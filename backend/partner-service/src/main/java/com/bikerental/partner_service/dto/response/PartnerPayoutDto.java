@@ -1,4 +1,4 @@
-package com.bikerental.partner_service.dto;
+package com.bikerental.partner_service.dto.response;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;

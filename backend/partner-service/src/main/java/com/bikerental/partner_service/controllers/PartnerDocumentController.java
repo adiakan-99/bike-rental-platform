@@ -1,7 +1,7 @@
 package com.bikerental.partner_service.controllers;
 
-import com.bikerental.partner_service.dto.FileUploadRequestUrlDto;
-import com.bikerental.partner_service.dto.FileUploadUrlDto;
+import com.bikerental.partner_service.dto.request.FileUploadRequestUrlDto;
+import com.bikerental.partner_service.dto.response.FileUploadUrlDto;
 import com.bikerental.partner_service.services.StorageServices;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;

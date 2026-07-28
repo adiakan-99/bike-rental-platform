@@ -1,9 +1,8 @@
-package com.bikerental.partner_service.dto;
+package com.bikerental.partner_service.dto.response;
 
 import lombok.Data;
 
 import java.time.LocalDate;
-import java.time.OffsetDateTime;
 
 @Data
 public class PartnerDocumentDto {
@@ -12,8 +11,5 @@ public class PartnerDocumentDto {
     private String docType;
     private String fileUrl;
     private LocalDate expiresAt;
-    private Integer verifiedBy;
-    private OffsetDateTime verifiedAt;
-    private String rejectNote;
 
 }

@@ -42,27 +42,4 @@ public class UserRole {
 	@Column(name = "assigned_at", nullable = false)
 	private LocalDateTime assignedAt;
 
-	/*
-	 * public UserRoleId getId() { return id; }
-	 * 
-	 * public User getUser() { return user; }
-	 * 
-	 * public void setUser(User user) { this.user = user; }
-	 * 
-	 * public Role getRole() { return role; }
-	 * 
-	 * public void setRole(Role role) { this.role = role; }
-	 * 
-	 * public User getAssignedBy() { return assignedBy; }
-	 * 
-	 * public void setAssignedBy(User assignedBy) { this.assignedBy = assignedBy; }
-	 * 
-	 * public LocalDateTime getAssignedAt() { return assignedAt; }
-	 * 
-	 * public void setAssignedAt(LocalDateTime assignedAt) { this.assignedAt =
-	 * assignedAt; }
-	 * 
-	 * public void setId(UserRoleId id) { this.id = id; }
-	 */
-
 }

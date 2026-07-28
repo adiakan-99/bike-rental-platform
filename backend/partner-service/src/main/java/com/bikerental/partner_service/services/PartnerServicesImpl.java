@@ -1,6 +1,12 @@
 package com.bikerental.partner_service.services;
 
-import com.bikerental.partner_service.dto.*;
+import com.bikerental.partner_service.client.AuthServiceClient;
+import com.bikerental.partner_service.dto.request.PartnerCreationRequestDto;
+import com.bikerental.partner_service.dto.request.PartnerDocumentUpdateRequestDto;
+import com.bikerental.partner_service.dto.request.PartnerPayoutRequestDto;
+import com.bikerental.partner_service.dto.request.PartnerUpdateRequestDto;
+import com.bikerental.partner_service.dto.request.internal.UserStatusUpdateRequestDto;
+import com.bikerental.partner_service.dto.response.*;
 import com.bikerental.partner_service.entities.Partner;
 import com.bikerental.partner_service.entities.PartnerDocument;
 import com.bikerental.partner_service.entities.PartnerPayoutAccount;
@@ -11,12 +17,16 @@ import com.bikerental.partner_service.repositories.PartnerPayoutAccountRepositor
 import com.bikerental.partner_service.repositories.PartnerRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.BeanUtils;
+import org.springframework.beans.BeanWrapper;
+import org.springframework.beans.BeanWrapperImpl;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Service
 public class PartnerServicesImpl implements PartnerServices {
@@ -24,15 +34,18 @@ public class PartnerServicesImpl implements PartnerServices {
     private final PartnerPayoutAccountRepository payoutAccountRepository;
     private final PartnerDocumentRepository documentRepository;
     private final StorageServices storageServices;
+    private final AuthServiceClient authServiceClient;
 
     public PartnerServicesImpl(PartnerRepository partnerRepository,
                                PartnerPayoutAccountRepository accountRepository,
                                PartnerDocumentRepository documentRepository,
-                               StorageServices storageServices) {
+                               StorageServices storageServices,
+                               AuthServiceClient authServiceClient) {
         this.partnerRepository = partnerRepository;
         this.payoutAccountRepository = accountRepository;
         this.documentRepository = documentRepository;
         this.storageServices = storageServices;
+        this.authServiceClient = authServiceClient;
     }
 
     @Override
@@ -77,21 +90,24 @@ public class PartnerServicesImpl implements PartnerServices {
             documentRepository.saveAll(partnerDocuments);
         }
 
+        UserStatusUpdateRequestDto dto = new UserStatusUpdateRequestDto();
+        dto.setAccountStatus(savedPartner.getAccountStatus());
+
+        authServiceClient.updateUserStatus(userId, dto);
+
         PartnerCreationResponseDto partnerCreationResponseDto = new PartnerCreationResponseDto();
         partnerCreationResponseDto.setPartnerId(savedPartner.getId());
         partnerCreationResponseDto.setSellerType(savedPartner.getSellerType());
         partnerCreationResponseDto.setApprovalStatus(savedPartner.getApprovalStatus());
-
         return partnerCreationResponseDto;
     }
 
     @Override
     public PartnerProfileResponseDto getPartnerById(Integer partnerId, Integer authenticatedUserId, List<String> roles) {
-        // 1. Fetch Partner
+
         Partner partner = partnerRepository.findById(partnerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Partner not found with ID: " + partnerId));
 
-        // 2. Zero-Trust Security Check: Is this user allowed to view this profile?
         boolean isAdmin = roles.contains("ADMIN");
         boolean isOwner = partner.getUserId().equals(authenticatedUserId);
 
@@ -99,13 +115,13 @@ public class PartnerServicesImpl implements PartnerServices {
             throw new AccessDeniedException("You do not have permission to view this partner profile.");
         }
 
-        // 3. Fetch Payout Details
         PartnerPayoutAccount payout = payoutAccountRepository.findByPartnerId(partnerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Payout details missing for partner ID: " + partnerId));
 
         // 4. Map Entity to DTO (Manual mapping shown here)
         PartnerProfileResponseDto response = new PartnerProfileResponseDto();
         BeanUtils.copyProperties(partner, response);
+        response.setPartnerId(partner.getId());
         // response.setBusinessName(partner.getBusinessName()); // Set other fields...
 
         PartnerPayoutDto payoutDto = new PartnerPayoutDto();
@@ -135,6 +151,130 @@ public class PartnerServicesImpl implements PartnerServices {
         publicDto.setPartnerId(partner.getId()); // In case ID names differ
 
         return publicDto;
+    }
+
+    @Override
+    public PartnerProfileResponseDto getMyProfile(Integer authenticatedUserId, List<String> roles) {
+        Partner partner = partnerRepository.findByUserId(authenticatedUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("Partner not found with ID: " + authenticatedUserId));
+
+        return this.getPartnerById(partner.getId(), authenticatedUserId, roles);
+    }
+
+    @Override
+    public List<PartnerDocumentDto> getMyDocuments(Integer authenticatedUserId, List<String> roles) {
+        Partner partner = partnerRepository.findByUserId(authenticatedUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("Partner not found with ID: " + authenticatedUserId));
+
+        return this.getPartnerDocuments(partner.getId(), authenticatedUserId, roles);
+    }
+
+    private String[] getNullPropertyNames(Object source) {
+        final BeanWrapper src = new BeanWrapperImpl(source);
+        java.beans.PropertyDescriptor[] pds = src.getPropertyDescriptors();
+
+        Set<String> emptyNames = new HashSet<String>();
+        for (java.beans.PropertyDescriptor pd : pds) {
+            Object srcValue = src.getPropertyValue(pd.getName());
+            if (srcValue == null) emptyNames.add(pd.getName());
+        }
+        emptyNames.add("panNumber");
+        emptyNames.add("gstNumber");
+        emptyNames.add("udyamNumber");
+
+        String[] result = new String[emptyNames.size()];
+        return emptyNames.toArray(result);
+    }
+
+    @Override
+    public PartnerProfileResponseDto updateMyProfile(Integer authenticatedUserId, PartnerUpdateRequestDto requestDto, List<String> roles) {
+        Partner objPartner = partnerRepository.findByUserId(authenticatedUserId).orElseThrow(() -> new AccessDeniedException("Access denied"));
+
+        BeanUtils.copyProperties(objPartner, requestDto, getNullPropertyNames(requestDto));
+
+        boolean critcalKycChanged = false;
+
+        if (requestDto.getPanNumber() != null && !requestDto.getPanNumber().equals(objPartner.getPanNumber())) {
+            critcalKycChanged = true;
+            objPartner.setPanNumber(requestDto.getPanNumber());
+        }
+
+        if (requestDto.getGstNumber() != null && !requestDto.getGstNumber().equals(objPartner.getGstNumber())) {
+            critcalKycChanged = true;
+            objPartner.setGstNumber(requestDto.getGstNumber());
+        }
+
+        if (requestDto.getUdyamNumber() != null && !requestDto.getUdyamNumber().equals(objPartner.getUdyamNumber())) {
+            critcalKycChanged = true;
+            objPartner.setUdyamNumber(requestDto.getUdyamNumber());
+        }
+
+        if (objPartner.getApprovalStatus().equals("REJECTED")) {
+            objPartner.setApprovalStatus("PENDING");
+            objPartner.setRejectionReason(null);
+        } else if (objPartner.getApprovalStatus().equals("APPROVED") && critcalKycChanged) {
+            objPartner.setApprovalStatus("PENDING");
+
+            // auth service client to revoke partner privilege
+            authServiceClient.deleteUserRole(authenticatedUserId, "PARTNER");
+        }
+
+        partnerRepository.save(objPartner);
+        return this.getPartnerById(objPartner.getId(), authenticatedUserId, roles);
+    }
+
+    @Override
+    @Transactional
+    public PartnerDocumentDto updatePartnerDocument(Integer authenticatedUserId, PartnerDocumentUpdateRequestDto requestDto) {
+        Partner objPartner = partnerRepository.findByUserId(authenticatedUserId).orElseThrow(() -> new AccessDeniedException("Access denied"));
+
+        PartnerDocument document = documentRepository.findByPartnerIdAndDocType(objPartner.getId(), requestDto.getDocType())
+                .orElseThrow(() -> new ResourceNotFoundException("Document not found"));
+
+        document.setFileUrl(requestDto.getFileUrl());
+
+        if (objPartner.getApprovalStatus().equals("APPROVED") || objPartner.getApprovalStatus().equals("REJECTED")) {
+            objPartner.setApprovalStatus("PENDING");
+            objPartner.setRejectionReason(null);
+
+            // auth service client to revoke partner privileges
+            authServiceClient.deleteUserRole(authenticatedUserId, "PARTNER");
+        }
+
+        documentRepository.save(document);
+        partnerRepository.save(objPartner);
+
+        PartnerDocumentDto responseDto = new PartnerDocumentDto();
+        BeanUtils.copyProperties(document, responseDto);
+        responseDto.setDocumentId(document.getId());
+
+        return responseDto;
+    }
+
+    @Override
+    @Transactional
+    public PartnerPayoutResponseDto upsertPartnerPayout(Integer authenticatedUserId, PartnerPayoutRequestDto requestDto) {
+        Partner objPartner = partnerRepository.findByUserId(authenticatedUserId).orElseThrow(() -> new ResourceNotFoundException("Partner not found"));
+
+        PartnerPayoutAccount payoutAccount = payoutAccountRepository.findByPartnerId(objPartner.getId())
+                .orElse(new PartnerPayoutAccount());
+
+        BeanUtils.copyProperties(requestDto, payoutAccount, getNullPropertyNames(requestDto));
+        payoutAccount.setPartner(objPartner);
+        payoutAccount.setIsPrimary(true);
+        payoutAccount.setCreatedAt(OffsetDateTime.now());
+
+        PartnerPayoutAccount savedAccount = payoutAccountRepository.save(payoutAccount);
+
+        String rawAcc = payoutAccount.getAccountNumber();
+        String masked = rawAcc.length() > 4 ? "XXXX-XXXX-" + rawAcc.substring(rawAcc.length() - 4) : "XXXX";
+
+        PartnerPayoutResponseDto responseDto = new PartnerPayoutResponseDto();
+        BeanUtils.copyProperties(savedAccount, responseDto);
+        responseDto.setId(savedAccount.getId());
+        responseDto.setMaskedAccountNumber(masked);
+
+        return responseDto;
     }
 
     @Override

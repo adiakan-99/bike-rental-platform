@@ -1,6 +1,6 @@
 package com.bikerental.partner_service.security;
 
-import com.bikerental.partner_service.dto.ErrorResponse;
+import com.bikerental.partner_service.dto.response.ErrorResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import jakarta.servlet.ServletException;

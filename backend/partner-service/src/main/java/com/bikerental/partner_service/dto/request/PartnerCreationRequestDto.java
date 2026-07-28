@@ -1,5 +1,7 @@
-package com.bikerental.partner_service.dto;
+package com.bikerental.partner_service.dto.request;
 
+import com.bikerental.partner_service.dto.response.PartnerDocumentUploadDto;
+import com.bikerental.partner_service.dto.response.PartnerPayoutDto;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import lombok.Data;
