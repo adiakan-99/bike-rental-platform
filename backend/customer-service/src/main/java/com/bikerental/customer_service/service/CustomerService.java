@@ -7,7 +7,7 @@ import java.util.List;
 
 public interface CustomerService {
 
-    //CustomerResponseDTO createCustomer(CustomerRequestDTO request, Integer userId);
+    CustomerResponseDTO createCustomer(CustomerRequestDTO request, Integer userId);
 
     CustomerResponseDTO getCustomerById(Integer userId);
 
