@@ -1,0 +1,35 @@
+services:
+  auth-service:
+    build:
+      context: ./auth-service
+
+    ports:
+      - "8081:8081"
+
+  customer-service:
+    build:
+      context: ./customer-service
+
+    ports:
+      - "8082:8082"
+
+  partner-service:
+    build:
+      context: ./partner-service
+
+    ports:
+      - "8083:8083"
+
+  api-gateway:
+    build:
+      context: ./api-gateway
+
+    ports:
+      - "8080:8080"
+
+    depends_on:
+      - auth-service
+
+      - customer-service
+
+      - partner-service
