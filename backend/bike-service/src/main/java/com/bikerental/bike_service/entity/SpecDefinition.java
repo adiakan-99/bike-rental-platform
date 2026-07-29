@@ -1,50 +1,46 @@
 package com.bikerental.bike_service.entity;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
-import lombok.Getter;
-import lombok.Setter;
-import org.hibernate.annotations.ColumnDefault;
+import lombok.*;
 
+@Entity
+@Table(name = "spec_definition", uniqueConstraints = {
+        @UniqueConstraint(name = "spec_definition_unique_0", columnNames = {"bike_category", "spec_key"})
+})
 @Getter
 @Setter
-@Entity
-@Table(name = "spec_definition")
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class SpecDefinition {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "spec_id", nullable = false)
-    private Integer id;
+    @Column(name = "spec_id")
+    private Integer specId;
 
-    @Size(max = 50)
-    @NotNull
-    @Column(name = "bike_category", nullable = false, length = 50)
+    @Column(name = "bike_category", nullable = false)
     private String bikeCategory;
 
-    @Size(max = 50)
-    @NotNull
-    @Column(name = "spec_key", nullable = false, length = 50)
+    @Column(name = "spec_key", nullable = false)
     private String specKey;
 
-    @Size(max = 100)
-    @NotNull
-    @Column(name = "display_name", nullable = false, length = 100)
+    @Column(name = "display_name", nullable = false)
     private String displayName;
 
-    @Size(max = 20)
-    @NotNull
-    @Column(name = "data_type", nullable = false, length = 20)
-    private String dataType;
+    @Column(name = "data_type", nullable = false)
+    private String dataType; // STRING, NUMBER, BOOLEAN
 
-    @Size(max = 20)
-    @Column(name = "unit", length = 20)
+    @Column(name = "unit")
     private String unit;
 
-    @NotNull
-    @ColumnDefault("false")
     @Column(name = "is_required", nullable = false)
     private Boolean isRequired;
 
-
+    @PrePersist
+    protected void onCreate() {
+        if (this.isRequired == null) {
+            this.isRequired = false;
+        }
+    }
 }

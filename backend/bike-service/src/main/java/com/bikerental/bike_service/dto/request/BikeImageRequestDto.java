@@ -5,11 +5,13 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 @Data
-public class BikeImageRequestDTO {
-
+public class BikeImageRequestDto {
     @NotBlank(message = "Image URL is required")
     private String imageUrl;
 
-    @NotNull(message = "Primary image flag is required")
-    private Boolean primaryImage;
+    @NotNull(message = "Display order is required")
+    private Integer displayOrder;
+
+    @NotNull(message = "Primary flag is required")
+    private Boolean isPrimary;
 }

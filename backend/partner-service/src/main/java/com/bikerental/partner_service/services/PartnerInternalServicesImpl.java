@@ -15,9 +15,9 @@ public class PartnerInternalServicesImpl implements PartnerInternalServices {
     }
 
     @Override
-    public PartnerStatusResponseDto getPartnerStatus(Integer partnerId) {
-        Partner objPartner = partnerRepository.findById(partnerId)
-                .orElseThrow(() -> new ResourceNotFoundException("Partner with id: " + partnerId + " not found."));
+    public PartnerStatusResponseDto getPartnerStatus(Integer userId) {
+        Partner objPartner = partnerRepository.findByUserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Partner with user id: " + userId + " not found."));
 
         PartnerStatusResponseDto partnerStatusResponseDto = new PartnerStatusResponseDto();
         partnerStatusResponseDto.setPartnerId(objPartner.getId());

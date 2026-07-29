@@ -19,7 +19,7 @@ public class StorageServiceImpl implements StorageServices {
     private final MinioClient minioClient;
 
     private final List<String> ALLOWED_FILE_TYPES = List.of(
-            "image/jpg", "image/jpeg", "image/png", "image/bmp", "image/gif", "image/gif", "application/pdf"
+            "image/jpg", "image/jpeg", "image/png", "image/bmp", "image/gif", "image/svg+xml", "application/pdf"
     );
 
     @Value("${minio.url}")
@@ -74,7 +74,7 @@ public class StorageServiceImpl implements StorageServices {
     @Override
     public String getFileDownloadUrl(String permanentFileUrl) {
         String prefixToRemove = minioUrl + "/" + minioBucketName + "/";
-        String objectKey = permanentFileUrl.replaceAll(prefixToRemove, "");
+        String objectKey = permanentFileUrl.replace(prefixToRemove, "");
 
         try {
             return minioClient.getPresignedObjectUrl(
