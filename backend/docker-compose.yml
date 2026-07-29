@@ -20,6 +20,17 @@ services:
     ports:
       - "8083:8083"
 
+    environment:
+      - AUTH_SERVICE_URL=auth-service:8081
+
+
+  bike-service:
+    build:
+      context: ./bike-service
+
+    ports:
+      - "8084:8084"
+
   api-gateway:
     build:
       context: ./api-gateway
