@@ -9,6 +9,13 @@ import lombok.Getter;
 @AllArgsConstructor
 public class JwtUser {
 
+    private Integer userId;
+
+    private String username;
+
+    private String firstName;
+
+    private String role;
 	private Integer userId;
 	private String email;
 	private String firstName;

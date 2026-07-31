@@ -32,4 +32,27 @@ public class UserKycController {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(response);
     }
+
+    @GetMapping
+    public ResponseEntity<UserKycResponseDto> getMyKyc(
+            Authentication authentication) {
+
+        JwtUser jwtUser = (JwtUser) authentication.getPrincipal();
+
+        return ResponseEntity.ok(
+                userKycService.getKyc(jwtUser.getUserId())
+        );
+    }
+
+    @PutMapping
+    public ResponseEntity<UserKycResponseDto> updateKyc(
+            @Valid @RequestBody UserKycRequestDto request,
+            Authentication authentication) {
+
+        JwtUser jwtUser = (JwtUser) authentication.getPrincipal();
+
+        return ResponseEntity.ok(
+                userKycService.updateKyc(request, jwtUser.getUserId())
+        );
+    }
 }

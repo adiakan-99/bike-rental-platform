@@ -29,24 +29,9 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
     }
 
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Map<String, String>> handleValidationException(
-            MethodArgumentNotValidException ex) {
-
-        Map<String, String> errors = new HashMap<>();
-
-        ex.getBindingResult().getAllErrors().forEach(error -> {
-            String fieldName = ((FieldError) error).getField();
-            String errorMessage = error.getDefaultMessage();
-
-            errors.put(fieldName, errorMessage);
-        });
-
-        return ResponseEntity.badRequest().body(errors);
-    }
-
-    @ExceptionHandler(UserNotFoundException.class)
-    public ResponseEntity<ErrorResponseDto> handleUserNotFound(UserNotFoundException ex) {
+    @ExceptionHandler(CustomerNotFoundException.class)
+    public ResponseEntity<ErrorResponseDto> handleCustomerNotFound(
+            CustomerNotFoundException ex) {
 
         ErrorResponseDto error = new ErrorResponseDto(
                 OffsetDateTime.now(),
@@ -57,9 +42,10 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
     }
-    @ExceptionHandler(CustomerNotFoundException.class)
-    public ResponseEntity<ErrorResponseDto> handleCustomerNotFound(
-            CustomerNotFoundException ex) {
+
+    @ExceptionHandler(UserNotFoundException.class)
+    public ResponseEntity<ErrorResponseDto> handleUserNotFound(
+            UserNotFoundException ex) {
 
         ErrorResponseDto error = new ErrorResponseDto(
                 OffsetDateTime.now(),
@@ -83,5 +69,33 @@ public class GlobalExceptionHandler {
         );
 
         return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<Map<String, String>> handleValidation(
+            MethodArgumentNotValidException ex) {
+
+        Map<String, String> errors = new HashMap<>();
+
+        ex.getBindingResult().getAllErrors().forEach(error -> {
+            FieldError fieldError = (FieldError) error;
+            errors.put(fieldError.getField(), error.getDefaultMessage());
+        });
+
+        return ResponseEntity.badRequest().body(errors);
+    }
+
+    @ExceptionHandler(UserKycNotFoundException.class)
+    public ResponseEntity<ErrorResponseDto> handleUserKycNotFound(
+            UserKycNotFoundException ex) {
+
+        ErrorResponseDto error = new ErrorResponseDto(
+                OffsetDateTime.now(),
+                HttpStatus.NOT_FOUND.value(),
+                HttpStatus.NOT_FOUND.getReasonPhrase(),
+                ex.getMessage()
+        );
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
     }
 }

@@ -10,9 +10,15 @@ import java.time.OffsetDateTime;
 
 @Getter
 @Setter
-public class UserKycResponseDto {
+public class AdminKycResponseDto {
 
     private Integer userId;
+
+    private String firstName;
+
+    private String lastName;
+
+    private String email;
 
     private LocalDate dateOfBirth;
 
@@ -30,7 +36,9 @@ public class UserKycResponseDto {
 
     private KycStatus kycStatus;
 
-    private OffsetDateTime createdAt;
+    private Integer verifiedBy;
 
-    private OffsetDateTime updatedAt;
+    private OffsetDateTime verifiedAt;
+
+    private OffsetDateTime createdAt;
 }

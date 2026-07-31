@@ -1,34 +1,35 @@
 package com.bikerental.customer_service.entity;
 
+import com.bikerental.customer_service.enums.IdType;
 import com.bikerental.customer_service.enums.KycStatus;
 import jakarta.persistence.*;
-import lombok.*;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 
-@Entity
-@Table(name = "user_kyc")
 @Getter
 @Setter
-@NoArgsConstructor
-@AllArgsConstructor
+@Entity
+@Table(name = "user_kyc")
 public class UserKyc {
 
     @Id
     @Column(name = "user_id")
     private Integer userId;
 
-    @Column(name = "date_of_birth", nullable = false)
+    @Column(name = "date_of_birth")
     private LocalDate dateOfBirth;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "id_type", nullable = false)
-    private String idType;
+    private IdType idType;
 
-    @Column(name = "id_number", nullable = false, unique = true)
+    @Column(name = "id_number")
     private String idNumber;
 
-    @Column(name = "id_upload_url", nullable = false)
+    @Column(name = "id_upload_url")
     private String idUploadUrl;
 
     @Column(name = "driving_license_number")
@@ -41,7 +42,7 @@ public class UserKyc {
     private LocalDate licenseValidTo;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "kyc_status", nullable = false)
+    @Column(name = "kyc_status")
     private KycStatus kycStatus;
 
     @Column(name = "verified_by")
@@ -55,4 +56,5 @@ public class UserKyc {
 
     @Column(name = "updated_at")
     private OffsetDateTime updatedAt;
+
 }

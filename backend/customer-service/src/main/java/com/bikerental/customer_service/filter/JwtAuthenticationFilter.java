@@ -12,12 +12,19 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import com.bikerental.customer_service.security.JwtUser;
 import com.bikerental.customer_service.service.JwtService;
-
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+import java.io.IOException;
+import java.util.List;
 
 @Component
 @RequiredArgsConstructor
@@ -56,6 +63,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         try {
 
+            if (jwtService.isTokenValid(token)) {
             boolean valid = jwtService.isTokenValid(token);
             System.out.println("Token Valid: " + valid);
 
@@ -72,15 +80,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         new UsernamePasswordAuthenticationToken(
                                 jwtUser,
                                 null,
-                                List.of(new SimpleGrantedAuthority("ROLE_" + jwtUser.getRole()))
+                                List.of(new SimpleGrantedAuthority(
+                                        "ROLE_" + jwtUser.getRole()))
                         );
 
 			List<SimpleGrantedAuthority> authorities = roles.stream()
 					.map(role -> new SimpleGrantedAuthority("ROLE_" + role))
 					.toList();
                 SecurityContextHolder.getContext().setAuthentication(authentication);
-
-                System.out.println("Authentication set successfully");
             }
 
 			UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
@@ -97,8 +104,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
 	}
         } catch (Exception e) {
-            System.out.println("JWT ERROR: " + e.getMessage());
             e.printStackTrace();
         }
+
+        filterChain.doFilter(request, response);
     }
 }
