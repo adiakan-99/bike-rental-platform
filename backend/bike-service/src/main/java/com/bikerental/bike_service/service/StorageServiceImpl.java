@@ -82,7 +82,7 @@ public class StorageServiceImpl implements StorageServices {
                             .method(Http.Method.GET)
                             .bucket(minioBucketName)
                             .object(objectKey)
-                            .expiry(1, TimeUnit.DAYS)
+                            .expiry(5, TimeUnit.HOURS)
                             .build()
             );
         } catch (MinioException e) {

@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/v1/bikes")
+@RequestMapping("/api/v1/bikes/storage")
 public class StorageController {
     private final StorageServices storageServices;
 
