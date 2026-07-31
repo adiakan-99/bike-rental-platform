@@ -2,14 +2,17 @@ package com.bikerental.customer_service.controller;
 
 import com.bikerental.customer_service.dto.UserKycRequestDto;
 import com.bikerental.customer_service.dto.UserKycResponseDto;
+import com.bikerental.customer_service.security.JwtUser;
 import com.bikerental.customer_service.service.UserKycService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/kyc")
+@RequestMapping("/api/customers/me/kyc")
 @RequiredArgsConstructor
 public class UserKycController {
 
@@ -17,11 +20,15 @@ public class UserKycController {
 
     @PostMapping
     public ResponseEntity<UserKycResponseDto> createKyc(
-            @RequestBody UserKycRequestDto request) {
+            @Valid @RequestBody UserKycRequestDto request,
+            Authentication authentication) {
+
+        JwtUser jwtUser = (JwtUser) authentication.getPrincipal();
 
         UserKycResponseDto response =
-                userKycService.createKyc(request, 1);
+                userKycService.createKyc(request, jwtUser.getUserId());
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(response);
     }
 }

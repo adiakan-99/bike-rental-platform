@@ -70,4 +70,18 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
     }
+
+    @ExceptionHandler(UserKycAlreadyExistsException.class)
+    public ResponseEntity<ErrorResponseDto> handleUserKycAlreadyExists(
+            UserKycAlreadyExistsException ex) {
+
+        ErrorResponseDto error = new ErrorResponseDto(
+                OffsetDateTime.now(),
+                HttpStatus.CONFLICT.value(),
+                HttpStatus.CONFLICT.getReasonPhrase(),
+                ex.getMessage()
+        );
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
+    }
 }

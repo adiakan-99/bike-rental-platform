@@ -4,6 +4,7 @@ import com.bikerental.customer_service.dto.CustomerRequestDTO;
 import com.bikerental.customer_service.dto.CustomerResponseDTO;
 import com.bikerental.customer_service.security.JwtUser;
 import com.bikerental.customer_service.service.CustomerService;
+import jakarta.annotation.PostConstruct;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -19,17 +20,6 @@ import java.util.List;
 public class CustomerController {
     private final CustomerService customerService;
 
-    @PostMapping
-    public ResponseEntity<CustomerResponseDTO> createCustomer(
-            @Valid @RequestBody CustomerRequestDTO request,
-            Authentication authentication) {
-    
-        JwtUser user = (JwtUser) authentication.getPrincipal();
-    
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(customerService.createCustomer(request, user.getUserId()));
-    }
-    
     @GetMapping("/{id}")
     public ResponseEntity<CustomerResponseDTO> getCustomerById(@PathVariable Integer id) {
         return ResponseEntity.ok(customerService.getCustomerById(id));
@@ -64,5 +54,11 @@ public class CustomerController {
         return ResponseEntity.ok(
                 customerService.getCustomerById(user.getUserId())
         );
+    }
+
+    @GetMapping("/test")
+    public String test() {
+        System.out.println("TEST API HIT");
+        return "Customer Controller Working";
     }
 }

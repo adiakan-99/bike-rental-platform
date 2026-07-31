@@ -39,9 +39,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String token = authHeader.substring(7);
 
+        System.out.println("========== JWT FILTER ==========");
+        System.out.println("Token: " + token);
+
         try {
 
-            if (jwtService.isTokenValid(token)) {
+            boolean valid = jwtService.isTokenValid(token);
+            System.out.println("Token Valid: " + valid);
+
+            if (valid) {
 
                 JwtUser jwtUser = new JwtUser(
                         jwtService.extractUserId(token),
@@ -50,24 +56,24 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         jwtService.extractRole(token)
                 );
 
+                System.out.println("UserId: " + jwtUser.getUserId());
+                System.out.println("Role: " + jwtUser.getRole());
+
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(
                                 jwtUser,
                                 null,
-                                List.of(
-                                        new SimpleGrantedAuthority(
-                                                "ROLE_" + jwtUser.getRole()
-                                        )
-                                )
+                                List.of(new SimpleGrantedAuthority("ROLE_" + jwtUser.getRole()))
                         );
 
                 SecurityContextHolder.getContext().setAuthentication(authentication);
+
+                System.out.println("Authentication set successfully");
             }
 
         } catch (Exception e) {
+            System.out.println("JWT ERROR: " + e.getMessage());
             e.printStackTrace();
         }
-
-        filterChain.doFilter(request, response);
     }
 }

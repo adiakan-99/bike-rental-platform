@@ -1,5 +1,6 @@
 package com.bikerental.customer_service.dto;
 
+import com.bikerental.customer_service.enums.KycStatus;
 import lombok.Data;
 
 import java.time.OffsetDateTime;
@@ -19,4 +20,6 @@ public class CustomerResponseDTO {
     private String pincode;
     private String accountStatus;
     private OffsetDateTime joiningDate;
+    private Boolean isVerified;
+    private KycStatus kycStatus;
 }

@@ -1,5 +1,6 @@
 package com.bikerental.customer_service.dto;
 
+import com.bikerental.customer_service.enums.KycStatus;
 import lombok.Data;
 
 import java.time.LocalDate;
@@ -24,7 +25,7 @@ public class UserKycResponseDto {
 
     private LocalDate licenseValidTo;
 
-    private String kycStatus;
+    private KycStatus kycStatus;
 
     private OffsetDateTime createdAt;
 
