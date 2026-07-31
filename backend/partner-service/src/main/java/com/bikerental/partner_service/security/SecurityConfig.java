@@ -35,7 +35,7 @@ public class SecurityConfig {
                         .accessDeniedHandler(accessDeniedHandler)
                 )
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/api/v1/internal/partners/**").permitAll()
+                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**").permitAll()
                         .requestMatchers("/api/v1/partners/public/**").permitAll()
                         .requestMatchers("/api/v1/partners/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()

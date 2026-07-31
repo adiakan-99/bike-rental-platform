@@ -1,16 +1,18 @@
 package com.bikerental.customer_service.service.impl;
 
+import java.time.OffsetDateTime;
+
+import org.springframework.stereotype.Service;
+
 import com.bikerental.customer_service.dto.UserKycRequestDto;
 import com.bikerental.customer_service.dto.UserKycResponseDto;
-import com.bikerental.customer_service.entity.User;
-import com.bikerental.customer_service.entity.UserKyc;
+import com.bikerental.customer_service.entity.Customer;
+import com.bikerental.customer_service.entity.CustomerKyc;
 import com.bikerental.customer_service.repository.UserKycRepository;
 import com.bikerental.customer_service.repository.UserRepository;
 import com.bikerental.customer_service.service.UserKycService;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
 
-import java.time.OffsetDateTime;
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
@@ -20,17 +22,15 @@ public class UserKycServiceImpl implements UserKycService {
     private final UserRepository userRepository;
 
     @Override
-    public UserKycResponseDto createKyc(UserKycRequestDto request, Integer userId) {
-        User user = userRepository.findById(userId)
+    public UserKycResponseDto createKyc(UserKycRequestDto request, Integer customerId) {
+        Customer customer = userRepository.findById(customerId)
                 .orElseThrow(()-> new RuntimeException("User Not Found"));
 
-        if(userKycRepository.existsById(userId)) {
+        if(userKycRepository.existsById(customerId)) {
             throw new RuntimeException("KYC already submitted for this user");
         }
-            UserKyc userKyc = new UserKyc();
+            CustomerKyc userKyc = new CustomerKyc();
 
-            userKyc.setUser(user);
-            userKyc.setUserId(userId);
 
             userKyc.setDateOfBirth(request.getDateOfBirth());
             userKyc.setIdType(request.getIdType());
@@ -44,7 +44,7 @@ public class UserKycServiceImpl implements UserKycService {
             userKyc.setCreatedAt(OffsetDateTime.now());
             userKyc.setUpdatedAt(OffsetDateTime.now());
 
-            UserKyc savedKyc = userKycRepository.save(userKyc);
+            CustomerKyc savedKyc = userKycRepository.save(userKyc);
 
             UserKycResponseDto response = new UserKycResponseDto();
 

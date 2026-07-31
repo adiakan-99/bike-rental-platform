@@ -6,6 +6,8 @@ import com.bikerental.partner_service.exceptions.ResourceNotFoundException;
 import com.bikerental.partner_service.repositories.PartnerRepository;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 public class PartnerInternalServicesImpl implements PartnerInternalServices {
     PartnerRepository partnerRepository;
@@ -15,9 +17,9 @@ public class PartnerInternalServicesImpl implements PartnerInternalServices {
     }
 
     @Override
-    public PartnerStatusResponseDto getPartnerStatus(Integer partnerId) {
-        Partner objPartner = partnerRepository.findById(partnerId)
-                .orElseThrow(() -> new ResourceNotFoundException("Partner with id: " + partnerId + " not found."));
+    public PartnerStatusResponseDto getPartnerStatus(Integer userId) {
+        Partner objPartner = partnerRepository.findByUserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Partner with user id: " + userId + " not found."));
 
         PartnerStatusResponseDto partnerStatusResponseDto = new PartnerStatusResponseDto();
         partnerStatusResponseDto.setPartnerId(objPartner.getId());
@@ -25,5 +27,14 @@ public class PartnerInternalServicesImpl implements PartnerInternalServices {
         partnerStatusResponseDto.setApprovalStatus(objPartner.getApprovalStatus());
 
         return partnerStatusResponseDto;
+    }
+
+    @Override
+    public List<Integer> getPartnerIdsByCity(String city) {
+        if (city == null || city.isEmpty()) {
+            throw new ResourceNotFoundException("City cannot be null or empty.");
+        }
+
+        return partnerRepository.findActiveApprovedPartnerIdsByCity(city);
     }
 }
