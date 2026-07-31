@@ -30,7 +30,8 @@ public class CaptchaService {
 
 		try {
 			// Send POST request to Google reCAPTCHA Verification Endpoint
-			Map<String, Object> response = restTemplate.postForObject(recaptchaUrl, requestParams, Map.class);
+			Map<String, Object> response = restTemplate
+					.postForObject(recaptchaUrl, requestParams, Map.class);
 
 			if (response != null && response.containsKey("success")) {
 				return (Boolean) response.get("success");

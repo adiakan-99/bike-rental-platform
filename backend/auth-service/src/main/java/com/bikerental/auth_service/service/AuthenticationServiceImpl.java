@@ -7,6 +7,8 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import com.bikerental.auth_service.client.CustomerServiceClient;
+import com.bikerental.auth_service.dto.CreateCustomerRequest;
 import com.bikerental.auth_service.dto.LoginRequest;
 import com.bikerental.auth_service.dto.LoginResponse;
 import com.bikerental.auth_service.dto.RegisterRequest;
@@ -16,13 +18,14 @@ import com.bikerental.auth_service.entity.User;
 import com.bikerental.auth_service.entity.UserRole;
 import com.bikerental.auth_service.entity.UserRoleId;
 import com.bikerental.auth_service.enums.AccountStatus;
-import com.bikerental.auth_service.enums.KycStatus;
 import com.bikerental.auth_service.repository.RoleRepository;
 import com.bikerental.auth_service.repository.UserRepository;
 import com.bikerental.auth_service.repository.UserRoleRepository;
 
 import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
 
+@RequiredArgsConstructor
 @Service
 public class AuthenticationServiceImpl implements AuthenticationService {
 
@@ -38,26 +41,18 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
 	private final JwtService jwtService;
 
-	public AuthenticationServiceImpl(AuthenticationManager authenticationManager, UserRepository userRepository,
-			PasswordEncoder passwordEncoder, RoleRepository roleRepository, UserRoleRepository userRoleRepository,
-			JwtService jwtService) {
-		this.authenticationManager = authenticationManager;
-		this.userRepository = userRepository;
-		this.passwordEncoder = passwordEncoder;
-		this.roleRepository = roleRepository;
-		this.userRoleRepository = userRoleRepository;
-		this.jwtService = jwtService;
-	}
+	private final CustomerServiceClient customerServiceClient;
 
 	@Override
 	public LoginResponse login(LoginRequest request) {
 		// TODO Auto-generated method stub
 
-		authenticationManager
-				.authenticate(new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
+		authenticationManager.authenticate(
+				new UsernamePasswordAuthenticationToken(request.getEmail(),
+						request.getPassword()));
 
-		User user = userRepository.findByEmail(request.getEmail())
-				.orElseThrow(() -> new RuntimeException("Invalid email or password"));
+		User user = userRepository.findByEmail(request.getEmail()).orElseThrow(
+				() -> new RuntimeException("Invalid email or password"));
 
 		if (user.getAccountStatus() != AccountStatus.ACTIVE) {
 			throw new RuntimeException("Account is disabled or suspended");
@@ -93,8 +88,6 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
 		user.setAccountStatus(AccountStatus.ACTIVE);
 
-		user.setKycStatus(KycStatus.PENDING);
-
 		user.setCreatedAt(LocalDateTime.now());
 
 		User savedUser = userRepository.save(user);
@@ -104,7 +97,8 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 				.orElseThrow(() -> new RuntimeException("Role not Found"));
 
 		UserRole userRole = new UserRole();
-		userRole.setId(new UserRoleId(savedUser.getUserId(), customerRole.getRoleId()));
+		userRole.setId(new UserRoleId(savedUser.getUserId(),
+				customerRole.getRoleId()));
 		userRole.setUser(savedUser);
 		userRole.setRole(customerRole);
 		userRole.setAssignedAt(LocalDateTime.now());
@@ -112,8 +106,13 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 		// save mapping
 		userRoleRepository.save(userRole);
 
-		return new RegisterResponse(savedUser.getUserId(), savedUser.getEmail(), savedUser.getFirstName(),
-				savedUser.getLastName(), savedUser.getPhoneNumber(), "Registration Successful");
+		customerServiceClient.createCustomer(
+				new CreateCustomerRequest(savedUser.getUserId()));
+		
+
+		return new RegisterResponse(savedUser.getUserId(), savedUser.getEmail(),
+				savedUser.getFirstName(), savedUser.getLastName(),
+				savedUser.getPhoneNumber(), "Registration Successful");
 
 	}
 
