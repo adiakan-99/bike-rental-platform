@@ -1,5 +1,6 @@
 package com.bikerental.customer_service.entity;
 
+import com.bikerental.customer_service.enums.KycStatus;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -61,4 +62,17 @@ public class Customer {
 	@Column(name = "updated_at")
 	private OffsetDateTime updatedAt;
 
+    @Column(name = "updated_at")
+    private OffsetDateTime updatedAt;
+
+    @NotNull
+    @Column(name = "account_status", nullable = false, length = 20)
+    private String accountStatus;
+
+    @Column(name = "is_verified", nullable = false)
+    private Boolean isVerified = false;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "kyc_status", nullable = false)
+    private KycStatus kycStatus = KycStatus.NOT_SUBMITTED;
 }

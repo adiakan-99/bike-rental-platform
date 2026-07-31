@@ -15,6 +15,7 @@ import com.bikerental.customer_service.dto.CustomerRequestDTO;
 import com.bikerental.customer_service.dto.CustomerResponseDTO;
 import com.bikerental.customer_service.security.JwtUser;
 import com.bikerental.customer_service.service.CustomerService;
+import jakarta.annotation.PostConstruct;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -84,6 +85,16 @@ public class CustomerController {
 
 		JwtUser user = (JwtUser) authentication.getPrincipal();
 
+        return ResponseEntity.ok(
+                customerService.getCustomerById(user.getUserId())
+        );
+    }
+
+    @GetMapping("/test")
+    public String test() {
+        System.out.println("TEST API HIT");
+        return "Customer Controller Working";
+    }
 		return ResponseEntity.ok(
 				customerService.updateCustomer(user.getUserId(), requestDTO));
 	}
