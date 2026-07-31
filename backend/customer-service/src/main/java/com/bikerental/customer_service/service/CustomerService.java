@@ -1,13 +1,14 @@
 package com.bikerental.customer_service.service;
 
+import java.util.List;
+
+import com.bikerental.customer_service.dto.CreateCustomerRequest;
 import com.bikerental.customer_service.dto.CustomerRequestDTO;
 import com.bikerental.customer_service.dto.CustomerResponseDTO;
 
-import java.util.List;
-
 public interface CustomerService {
 
-    //CustomerResponseDTO createCustomer(CustomerRequestDTO request, Integer userId);
+    void createCustomer(CreateCustomerRequest request);
 
 //    CustomerResponseDTO getCustomerById(CustomerRequestDTO request, Integer userId);
 
@@ -17,9 +18,8 @@ public interface CustomerService {
 
     CustomerResponseDTO  deleteCustomer(Integer userId);
 
-	CustomerResponseDTO createCustomer(
-			CustomerRequestDTO request,
-			Integer userId);
 
 	CustomerResponseDTO getCustomerById(Integer customerId);
+
+	CustomerResponseDTO getCustomerByUserId(Integer userId);
 }

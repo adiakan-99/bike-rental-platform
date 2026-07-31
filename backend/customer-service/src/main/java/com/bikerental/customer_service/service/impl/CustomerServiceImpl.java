@@ -5,11 +5,12 @@ import java.util.List;
 
 import org.springframework.stereotype.Service;
 
+import com.bikerental.customer_service.dto.CreateCustomerRequest;
 import com.bikerental.customer_service.dto.CustomerRequestDTO;
 import com.bikerental.customer_service.dto.CustomerResponseDTO;
 import com.bikerental.customer_service.entity.Customer;
-import com.bikerental.customer_service.exception.CustomerAlreadyExistsException;
 import com.bikerental.customer_service.exception.CustomerNotFoundException;
+import com.bikerental.customer_service.exception.UserNotFoundException;
 import com.bikerental.customer_service.repository.CustomerRepository;
 import com.bikerental.customer_service.service.CustomerService;
 
@@ -22,23 +23,21 @@ public class CustomerServiceImpl implements CustomerService {
 	private final CustomerRepository customerRepository;
 
 	@Override
-	public CustomerResponseDTO createCustomer(CustomerRequestDTO request,
-			Integer userId) {
-		if (customerRepository.findByUserId(userId).isPresent()) {
-			throw new CustomerAlreadyExistsException(userId);
+	public void createCustomer(CreateCustomerRequest request) {
+
+		if (customerRepository.findByUserId(request.getUserId()).isPresent()) {
+			throw new RuntimeException("Customer Profile Already Exists");
 		}
 
 		Customer customer = new Customer();
-		customer.setUserId(userId);
-		mapRequestToCustomer(customer, request);
 
-		customer.setJoiningDate(OffsetDateTime.now());
+		customer.setUserId(request.getUserId());
+
+		customer.setCreatedAt(OffsetDateTime.now());
 		customer.setUpdatedAt(OffsetDateTime.now());
-		customer.setAccountStatus("ACTIVE");
 
-		Customer savedCustomer = customerRepository.save(customer);
+		customerRepository.save(customer);
 
-		return mapToResponse(savedCustomer);
 	}
 
 	@Override
@@ -46,43 +45,47 @@ public class CustomerServiceImpl implements CustomerService {
 		Customer customer = customerRepository.findById(customerId)
 				.orElseThrow(() -> new CustomerNotFoundException(customerId));
 
-		return mapToResponse(customer);
+		return mapToDTO(customer);
 	}
 
 	@Override
 	public List<CustomerResponseDTO> getAllCustomers() {
 		List<Customer> customers = customerRepository.findAll();
 
-		return customers.stream().map(this::mapToResponse).toList();
+		return customers.stream().map(this::mapToDTO).toList();
 	}
 
 	@Override
-	public CustomerResponseDTO updateCustomer(Integer customerId,
+	public CustomerResponseDTO updateCustomer(Integer userId,
 			CustomerRequestDTO request) {
-		Customer customer = customerRepository.findById(customerId)
-				.orElseThrow(() -> new CustomerNotFoundException(customerId));
+		Customer customer = customerRepository.findByUserId(userId)
+				.orElseThrow(() -> new CustomerNotFoundException(userId));
 
 		mapRequestToCustomer(customer, request);
+
 		customer.setUpdatedAt(OffsetDateTime.now());
 
 		Customer updatedCustomer = customerRepository.save(customer);
 
-		return mapToResponse(updatedCustomer);
+		CustomerResponseDTO customerResponseDTO = mapToDTO(updatedCustomer);
+
+		return customerResponseDTO;
 	}
 
+	// check pending
 	@Override
 	public CustomerResponseDTO deleteCustomer(Integer customerId) {
 		Customer customer = customerRepository.findById(customerId)
 				.orElseThrow(() -> new CustomerNotFoundException(customerId));
 
-		CustomerResponseDTO response = mapToResponse(customer);
+		CustomerResponseDTO response = mapToDTO(customer);
 
 		customerRepository.delete(customer);
 
 		return response;
 	}
 
-	private CustomerResponseDTO mapToResponse(Customer customer) {
+	private CustomerResponseDTO mapToDTO(Customer customer) {
 		CustomerResponseDTO response = new CustomerResponseDTO();
 
 		response.setCustomerId(customer.getId());
@@ -94,14 +97,15 @@ public class CustomerServiceImpl implements CustomerService {
 		response.setPincode(customer.getPincode());
 		response.setEmergencyContact(customer.getEmergencyContact());
 		response.setReferralCode(customer.getReferralCode());
-		response.setAccountStatus(customer.getAccountStatus());
-		response.setJoiningDate(customer.getJoiningDate());
+		response.setUpdatedAt(customer.getUpdatedAt());
+		response.setCreatedAt(customer.getCreatedAt());
 
 		return response;
 	}
 
 	private void mapRequestToCustomer(Customer customer,
 			CustomerRequestDTO request) {
+
 		customer.setAddressLine1(request.getAddressLine1());
 		customer.setAddressLine2(request.getAddressLine2());
 		customer.setCity(request.getCity());
@@ -109,5 +113,14 @@ public class CustomerServiceImpl implements CustomerService {
 		customer.setPincode(request.getPincode());
 		customer.setEmergencyContact(request.getEmergencyContact());
 		customer.setReferralCode(request.getReferralCode());
+	}
+
+	@Override
+	public CustomerResponseDTO getCustomerByUserId(Integer userId) {
+		// TODO Auto-generated method stub
+		Customer customer = customerRepository.findByUserId(userId)
+				.orElseThrow(() -> new UserNotFoundException(userId));
+
+		return mapToDTO(customer);
 	}
 }
