@@ -1,0 +1,10 @@
+ALTER TABLE users
+DROP COLUMN IF EXISTS is_verified;
+
+
+ALTER TABLE users
+DROP COLUMN IF EXISTS kyc_status;
+
+
+ALTER TABLE users
+DROP COLUMN IF EXISTS partner_status;
