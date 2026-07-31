@@ -38,8 +38,8 @@ public class SecurityConfig {
                         .authenticationEntryPoint(authenticationEntryPoint)
                         .accessDeniedHandler(accessDeniedHandler))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/api/v1/bikes/public/**", "/bikes/v3/api-docs/**").permitAll()
-                        .requestMatchers("/api/v1/bikes/partners/**").hasRole("PARTNER")
+                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/api/v1/bikes/public/**", "/bikes/v3/api-docs/**", "/api/v1/internal/**").permitAll()
+                        .requestMatchers("/api/v1/bikes/partner/**", "/api/v1/bikes/storage/**").hasRole("PARTNER")
                         .requestMatchers("/api/v1/bikes/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

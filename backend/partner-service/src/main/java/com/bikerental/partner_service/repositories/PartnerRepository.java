@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface PartnerRepository extends JpaRepository<Partner, Integer> {
@@ -24,4 +25,7 @@ public interface PartnerRepository extends JpaRepository<Partner, Integer> {
                                      @Param("accountStatus") String accountStatus,
                                      @Param("search") String search,
                                      Pageable pageable);
+
+    @Query("SELECT p.id FROM Partner p WHERE LOWER(p.city) = LOWER(:city) AND p.accountStatus = 'ACTIVE' AND p.approvalStatus = 'APPROVED'")
+    List<Integer> findActiveApprovedPartnerIdsByCity(@Param("city") String city);
 }
