@@ -1,10 +1,10 @@
 package com.bikerental.customer_service.service;
 
-import com.bikerental.customer_service.dto.FileUploadRequestUrlDto;
-import com.bikerental.customer_service.dto.FileUploadUrlDto;
+import com.bikerental.customer_service.dto.FileUploadRequestDto;
+import com.bikerental.customer_service.dto.FileUploadResponseDto;
+import org.springframework.web.multipart.MultipartFile;
 
 public interface StorageService {
 
-    FileUploadUrlDto generateUploadUrl(FileUploadRequestUrlDto request);
-
+    FileUploadResponseDto generateUploadUrl(FileUploadRequestDto request);
 }

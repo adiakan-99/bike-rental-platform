@@ -1,11 +1,11 @@
 package com.bikerental.customer_service.dto;
 
 import lombok.AllArgsConstructor;
-import lombok.Data;
+import lombok.Getter;
 
 import java.time.OffsetDateTime;
 
-@Data
+@Getter
 @AllArgsConstructor
 public class ErrorResponseDto {
 
@@ -16,5 +16,4 @@ public class ErrorResponseDto {
     private String error;
 
     private String message;
-
 }

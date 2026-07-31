@@ -5,6 +5,11 @@ import com.bikerental.customer_service.dto.UserKycResponseDto;
 
 public interface UserKycService {
 
-    UserKycResponseDto createKyc(UserKycRequestDto request, Integer userId);
+    UserKycResponseDto createKyc(UserKycRequestDto request,
+                                 Integer userId);
 
+    UserKycResponseDto getKyc(Integer userId);
+
+    UserKycResponseDto updateKyc(UserKycRequestDto request,
+                                 Integer userId);
 }
