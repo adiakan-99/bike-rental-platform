@@ -1,0 +1,1 @@
+export { usePartnerService } from "./usePartnerService";

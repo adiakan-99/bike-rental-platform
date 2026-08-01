@@ -183,6 +183,11 @@ export default function App() {
     go("dealerPortal");
     setPortalTab({ tab, n: Date.now() });
   };
+
+  const goPartnerProfile = () => go("partnerProfile");
+  const goPartnerOnboard = () => go("partnerOnboard");
+  const goAdminPartners = () => go("adminPartners");
+
   const toggleWish = (id) => {
     const bike = BIKES.find((b) => b.id === id);
     const next = new Set(wishlist);
@@ -619,6 +624,9 @@ export default function App() {
     <div className="br-root min-h-screen pt-16">
       <Styles />
       <Navbar
+        onPartnerProfile={goPartnerProfile}
+        onPartnerOnboard={goPartnerOnboard}
+        onAdminPartners={goAdminPartners}
         onLogo={goHome}
         onLogin={() => go("login")}
         onRegister={() => go("register")}
@@ -674,6 +682,9 @@ export default function App() {
           goDetails,
           goHome,
           goResults,
+          goAdminPartners,
+          goPartnerOnboard,
+          goPartnerProfile,
           myListings,
           notify,
           openRental,
