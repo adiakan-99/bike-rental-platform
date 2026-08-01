@@ -1,19 +1,41 @@
 ﻿using booking_service.Contracts;
+using booking_service.Domain;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace booking_service.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("api/v1/bookings")]
     [ApiController]
     public class BookingsController : ControllerBase
     {
-        [HttpPatch("{id:int}/return")]
-        public IActionResult Return(int id) => StatusCode(StatusCodes.Status501NotImplemented);
+        private readonly IBookingQuoteService _qouteService;
 
-        [HttpPatch("{id:int}/cancel")]
-        public IActionResult Cancel(int id, [FromBody] CancelBookingRequest request)
-            => StatusCode(StatusCodes.Status501NotImplemented);
+        public BookingsController(IBookingQuoteService qouteService)
+        {
+            _qouteService = qouteService;
+        }
 
+        [HttpPost("quote")]
+        public async Task<ActionResult<QuoteResponseDto>> GetBookingQuote([FromBody] QuoteRequestDto request)
+        {
+            try
+            {
+                var quote = await _qouteService.CalculateQuoteAsync(request);
+                return Ok(quote);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { message = ex.Message });
+            }
+        }
     }
 }

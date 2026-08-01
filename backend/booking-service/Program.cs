@@ -1,3 +1,5 @@
+using booking_service.Domain;
+using booking_service.Infrastructure.Clients;
 using Microsoft.OpenApi.Models;
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 var builder = WebApplication.CreateBuilder(args);
@@ -14,6 +16,16 @@ var roleClaim = builder.Configuration["Jwt:RoleClaim"] ?? "roles";
 // Add services to the container.
 
 builder.Services.AddControllers();
+
+builder.Services.AddHttpContextAccessor();
+
+builder.Services.AddHttpClient<IBikeServiceClient, BikeServiceClient>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["Services:BikeServiceUrl"] ?? "http://localhost:8084");
+});
+
+builder.Services.AddScoped<IBookingQuoteService, BookingQuoteService>();
+
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -40,7 +52,9 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseAuthentication();
 app.UseAuthorization();
+
 
 app.MapControllers();
 

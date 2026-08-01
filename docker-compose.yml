@@ -63,6 +63,12 @@ services:
     environment:
       - AUTH_SERVICE_URL=http://auth-service:8081
 
+  # booking-service:
+  #   build:
+  #     context: ./backend/booking-service
+  #   ports:
+  #     - "8085:8085"
+
   api-gateway:
     build:
       context: ./backend/api-gateway
