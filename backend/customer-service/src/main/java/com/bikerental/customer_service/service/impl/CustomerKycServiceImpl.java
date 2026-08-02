@@ -48,7 +48,7 @@ public class CustomerKycServiceImpl implements CustomerKycService {
 		customerKyc.setCreatedAt(now);
 		customerKyc.setUpdatedAt(now);
 
-		customerKyc.setKycStatus(KycStatus.PENDING);
+		customerKyc.setKycStatus(KycStatus.SUBMITTED);
 
 		CustomerKyc savedCustomerKyc = customerKycRepository.save(customerKyc);
 

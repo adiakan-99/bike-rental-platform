@@ -23,7 +23,7 @@ import com.bikerental.auth_service.dto.UserProfileResponse;
 import com.bikerental.auth_service.security.CustomUserDetails;
 import com.bikerental.auth_service.security.JwtUser;
 import com.bikerental.auth_service.service.AuthenticationService;
-import com.bikerental.auth_service.service.CaptchaService;
+import com.bikerental.auth_service.service.CaptchaServiceImpl;
 import com.bikerental.auth_service.service.UserService;
 
 import jakarta.validation.Valid;
@@ -36,7 +36,7 @@ public class AuthController {
 
 	private final AuthenticationService authenticationService;
 	private final UserService userService;
-	private final CaptchaService captchaService;
+	private final CaptchaServiceImpl captchaService;
 
 	@PostMapping("/register")
 	public ResponseEntity<?> register(
