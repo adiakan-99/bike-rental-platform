@@ -24,9 +24,9 @@ public interface BikeRepository extends JpaRepository<Bike, Integer> {
             "b.approvalStatus = com.bikerental.bike_service.enums.ApprovalStatus.APPROVED AND " +
             "b.bikeStatus = com.bikerental.bike_service.enums.BikeStatus.AVAILABLE AND " +
             "b.deletedAt IS NULL AND " +
-            "(:partnerIds IS NULL OR b.partnerId IN :partnerIds) AND " +
-            "(:manufacturer IS NULL OR LOWER(b.manufacturer) = LOWER(:manufacturer)) AND " +
-            "(:category IS NULL OR LOWER(d.bikeCategory) = LOWER(:category)) AND " +
+            "(COALESCE(:partnerIds) IS NULL OR b.partnerId IN :partnerIds) AND " +
+            "(:manufacturer IS NULL OR LOWER(b.manufacturer) = LOWER(CAST(:manufacturer AS string))) AND " +
+            "(:category IS NULL OR LOWER(d.bikeCategory) = LOWER(CAST(:category AS string))) AND " +
             "(:minPrice IS NULL OR b.hourlyRate >= :minPrice) AND " +
             "(:maxPrice IS NULL OR b.hourlyRate <= :maxPrice)")
     Page<Bike> searchBikes(
