@@ -93,11 +93,16 @@ services:
     networks:
       - bike-rental-network
 
-  # booking-service:
-  #   build:
-  #     context: ./backend/booking-service
-  #   ports:
-  #     - "8085:8085"
+  booking-service:
+    build: ./backend/booking-service
+    container_name: booking-service
+    ports:
+      - "8085:8085"
+    environment:
+      ASPNETCORE_URLS: http://+:8085
+      ASPNETCORE_ENVIRONMENT: Development
+    networks:
+      - bike-rental-network
 
   api-gateway:
     build:
@@ -109,6 +114,7 @@ services:
       - customer-service
       - partner-service
       - bike-service
+      - booking-service
     networks:
       - bike-rental-network
 
