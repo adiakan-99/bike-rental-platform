@@ -10,8 +10,8 @@ export function PartnerReviewPanel({ partners, onReview, notify }) {
     setBusy(true);
     try {
       await onReview(selected.partnerId, {
-        approved,
-        rejectionReason: approved ? null : reason,
+        approvalStatus: approved ? "APPROVED" : "REJECTED",
+        adminRemarks: approved ? null : reason,
       });
       notify(
         approved ? "Partner approved." : "Partner rejected.",

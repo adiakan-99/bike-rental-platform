@@ -1,1 +1,0 @@
-export { usePartnerService } from "./usePartnerService";

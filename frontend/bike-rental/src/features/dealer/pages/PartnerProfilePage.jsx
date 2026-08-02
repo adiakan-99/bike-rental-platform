@@ -128,11 +128,14 @@ export function PartnerProfilePage({ onBack, onEdit }) {
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
               <Row
                 label="Account holder"
-                value={partner.payoutAccount?.accountHolderName}
+                value={partner.payoutAccount?.accountHolder}
               />
               <Row label="Bank" value={partner.payoutAccount?.bankName} />
-              <Row label="IFSC" value={partner.payoutAccount?.ifscCode} />
-              <Row label="Type" value={partner.payoutAccount?.accountType} />
+              <Row
+                label="Account number"
+                value={partner.payoutAccount?.accountNumber}
+              />
+              <Row label="IFSC" value={partner.payoutAccount?.ifsc} />
             </div>
           </div>
 

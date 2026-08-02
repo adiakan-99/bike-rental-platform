@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const EMPTY = {
   sellerType: "INDIVIDUAL",
@@ -22,11 +22,10 @@ const EMPTY = {
   licenseValidFrom: "",
   licenseValidTo: "",
   payoutAccount: {
-    accountHolderName: "",
+    accountHolder: "",
     accountNumber: "",
-    ifscCode: "",
+    ifsc: "",
     bankName: "",
-    accountType: "SAVINGS",
   },
 };
 
@@ -47,7 +46,21 @@ function Input({ label, name, required, ...rest }) {
 }
 
 export function PartnerOnboardingForm({ initial, onSubmit, loading }) {
-  const [form, setForm] = useState({ ...EMPTY, ...initial });
+  const [form, setForm] = useState(EMPTY);
+  useEffect(() => {
+    if (!initial) return;
+    // Inputs are controlled — null would make React switch them to uncontrolled.
+    const blankNulls = (obj = {}) =>
+      Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, v ?? ""]));
+    setForm({
+      ...EMPTY,
+      ...blankNulls(initial),
+      payoutAccount: {
+        ...EMPTY.payoutAccount,
+        ...blankNulls(initial.payoutAccount),
+      },
+    });
+  }, [initial]);
 
   const change = (e) =>
     setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
@@ -60,11 +73,18 @@ export function PartnerOnboardingForm({ initial, onSubmit, loading }) {
 
   const submit = (e) => {
     e.preventDefault();
-    const body = { ...form, documents: [] };
-    // Backend expects null, not "", for optional dates
-    if (!body.licenseValidFrom) body.licenseValidFrom = null;
-    if (!body.licenseValidTo) body.licenseValidTo = null;
-    onSubmit(body);
+
+    // @Pattern skips null but rejects "" — blank optional fields must go as null.
+    const clean = (obj) =>
+      Object.fromEntries(
+        Object.entries(obj).map(([k, v]) => [k, v === "" ? null : v]),
+      );
+
+    onSubmit({
+      ...clean(form),
+      payoutAccount: clean(form.payoutAccount),
+      documents: [],
+    });
   };
 
   const isBusiness = form.sellerType === "COMMERCIAL_DEALER";
@@ -82,6 +102,7 @@ export function PartnerOnboardingForm({ initial, onSubmit, loading }) {
                 value={t}
                 checked={form.sellerType === t}
                 onChange={change}
+                disabled={!!initial}
                 className="mr-3"
               />
               {t === "INDIVIDUAL" ? "Individual" : "Commercial dealer"}
@@ -248,46 +269,35 @@ export function PartnerOnboardingForm({ initial, onSubmit, loading }) {
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
           <Input
             label="Account holder"
-            name="accountHolderName"
+            name="accountHolder"
             required
-            value={form.payoutAccount.accountHolderName}
+            value={form.payoutAccount.accountHolder}
             onChange={changePayout}
           />
           <Input
             label="Account number"
             name="accountNumber"
             required
+            pattern="\d{9,18}"
+            placeholder="9-18 digits"
             value={form.payoutAccount.accountNumber}
             onChange={changePayout}
           />
           <Input
             label="IFSC code"
-            name="ifscCode"
+            name="ifsc"
             required
-            value={form.payoutAccount.ifscCode}
+            pattern="[A-Z]{4}0[A-Z0-9]{6}"
+            placeholder="e.g. SBIN0001234"
+            value={form.payoutAccount.ifsc}
             onChange={changePayout}
           />
           <Input
             label="Bank name"
             name="bankName"
-            required
             value={form.payoutAccount.bankName}
             onChange={changePayout}
           />
-          <div>
-            <label className="mb-2 block text-sm font-medium">
-              Account type
-            </label>
-            <select
-              name="accountType"
-              value={form.payoutAccount.accountType}
-              onChange={changePayout}
-              className="w-full rounded border px-3 py-2"
-            >
-              <option value="SAVINGS">Savings</option>
-              <option value="CURRENT">Current</option>
-            </select>
-          </div>
         </div>
       </div>
 

@@ -27,7 +27,7 @@ import { Guard } from "../ui";
 import {
   PartnerOnboardingPage,
   PartnerProfilePage,
-} from "../features/partner/pages";
+} from "../features/dealer/pages";
 import { PartnerManagementPage } from "../features/admin/pages";
 
 export function AppRoutes({ ctx }) {
@@ -67,6 +67,7 @@ export function AppRoutes({ ctx }) {
     pBikes,
     pDealers,
     page,
+    pendingBook,
     partnerRentals,
     portalTab,
     recordIdentity,
@@ -94,6 +95,7 @@ export function AppRoutes({ ctx }) {
     wishlist,
     wishlistBikes,
   } = ctx;
+
   return (
     <main>
       {page === "home" && <LandingPage onSearch={goResults} />}

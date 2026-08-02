@@ -1,13 +1,27 @@
 import { usePartnerService } from "../hooks";
 import { PartnerOnboardingForm } from "../components";
 import { ErrorAlert } from "../../../ui";
+import { useEffect } from "react";
 
 export function PartnerOnboardingPage({ onSuccess, onCancel }) {
-  const { onboardPartner, loading, error, clearError } = usePartnerService();
+  const {
+    partner,
+    getMyProfile,
+    onboardPartner,
+    updateMyProfile,
+    loading,
+    error,
+    clearError,
+  } = usePartnerService();
+
+  useEffect(() => {
+    getMyProfile().catch(() => {}); // 404 is fine — means no record yet
+  }, [getMyProfile]);
 
   const submit = async (body) => {
     try {
-      await onboardPartner(body);
+      if (partner) await updateMyProfile(body);
+      else await onboardPartner(body);
       onSuccess();
     } catch {
       window.scrollTo({ top: 0 });
@@ -23,7 +37,11 @@ export function PartnerOnboardingPage({ onSuccess, onCancel }) {
         </button>
       </div>
       <ErrorAlert message={error} onClose={clearError} />
-      <PartnerOnboardingForm onSubmit={submit} loading={loading} />
+      <PartnerOnboardingForm
+        initial={partner}
+        onSubmit={submit}
+        loading={loading}
+      />
     </div>
   );
 }
