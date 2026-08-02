@@ -326,7 +326,7 @@ public class BikeServicesImpl implements BikeServices {
     }
 
     @Override
-    public Page<BikeCardDto> browseBike(String city, String manufacturer, String category, BigDecimal minPrice, BigDecimal maxPrice, Pageable pageable) {
+    public Page<BikeCardDto> browseBike(String city, LocalDateTime startDate, LocalDateTime endDate, String manufacturer, String category, BigDecimal minPrice, BigDecimal maxPrice, Pageable pageable) {
         List<Integer> partnerIdsInCity = null;
 
         if (city != null && !city.trim().isEmpty()) {
@@ -341,7 +341,30 @@ public class BikeServicesImpl implements BikeServices {
             }
         }
 
-        Page<Bike> bikePage = bikeRepository.searchBikes(partnerIdsInCity, manufacturer, category, minPrice, maxPrice, pageable);
+        List<Integer> bookedBikeIds = null;
+
+        if (startDate != null && endDate != null) {
+            if (startDate.isAfter(endDate) || startDate.isBefore(LocalDateTime.now())) {
+                throw new IllegalArgumentException("Start date must be after end date");
+            }
+
+            try {
+                List<Integer> candidateBikeByIds = bikeRepository.searchBikes(
+                        partnerIdsInCity, null, manufacturer, category, minPrice, maxPrice, Pageable.unpaged())
+                        .getContent()
+                        .stream()
+                        .map(Bike::getBikeId)
+                        .toList();
+
+                if (candidateBikeByIds.isEmpty()) {
+                    bookedBikeIds = bookingServiceClient.getConflictingBikeIds(startDate, endDate, candidateBikeByIds);
+                }
+            } catch (Exception e) {
+                System.out.println("Booking service unavailable");
+            }
+        }
+
+        Page<Bike> bikePage = bikeRepository.searchBikes(partnerIdsInCity, bookedBikeIds, manufacturer, category, minPrice, maxPrice, pageable);
 
         return bikePage.map(bike -> {
             String primaryImageUrl = null;
@@ -461,6 +484,67 @@ public class BikeServicesImpl implements BikeServices {
                 .bikeStatus(bike.getBikeStatus())
                 .approvalStatus(bike.getApprovalStatus())
                 .isBookable(isBookable)
+                .build();
+    }
+
+    @Override
+    public FleetListingDto getPartnerBikeById(Integer userId, Integer bikeId) {
+        PartnerStatusDto partner = partnerServiceClient.getPartnerStatus(userId);
+
+        if (partner == null || !partner.getAccountStatus().equals("ACTIVE") || !partner.getApprovalStatus().equals("APPROVED")) {
+            throw new AccessDeniedException("User is not authorized to perform this operation");
+        }
+
+        Bike bike = bikeRepository.findByBikeIdAndPartnerIdAndDeletedAtIsNull(bikeId, partner.getPartnerId())
+                .orElseThrow(() -> new IllegalArgumentException("No bike with id " + bikeId));
+
+        return mapToFleetListingDto(bike);
+    }
+
+    @Override
+    public PendingBikeDto getAdminBikeById(Integer bikeId) {
+        Bike bike = bikeRepository.findById(bikeId)
+                .filter(b -> b.getDeletedAt() == null)
+                .orElseThrow(() -> new IllegalArgumentException("Bike with ID " + bikeId + " not found"));
+
+        // 2. Map Insurance details
+        InsuranceRequestDto insDto = null;
+        if (bike.getInsurance() != null) {
+            insDto = new InsuranceRequestDto();
+            BeanUtils.copyProperties(bike.getInsurance(), insDto);
+        }
+
+        // 3. Map Images with pre-signed URLs
+        List<BikeImageRequestDto> imageDtos = null;
+        if (bike.getBikeImages() != null) {
+            imageDtos = bike.getBikeImages().stream().map(img -> {
+                BikeImageRequestDto imgDto = new BikeImageRequestDto();
+                BeanUtils.copyProperties(img, imgDto);
+                if (img.getImageUrl() != null) {
+                    imgDto.setImageUrl(storageServices.getFileDownloadUrl(img.getImageUrl()));
+                }
+                return imgDto;
+            }).collect(Collectors.toList());
+        }
+
+        // 4. Return complete inspection DTO for Admin with pre-signed document URLs
+        return PendingBikeDto.builder()
+                .bikeId(bike.getBikeId())
+                .partnerId(bike.getPartnerId())
+                .registrationNumber(bike.getRegistrationNumber())
+                .manufacturer(bike.getManufacturer())
+                .model(bike.getModel())
+                .category(bike.getBikeDetails() != null ? bike.getBikeDetails().getBikeCategory() : null)
+                .hourlyRate(bike.getHourlyRate())
+                .securityDeposit(bike.getSecurityDeposit())
+                .rcUploadUrl(bike.getRcUploadUrl() != null ? storageServices.getFileDownloadUrl(bike.getRcUploadUrl()) : null)
+                .pucUploadUrl(bike.getPucUploadUrl() != null ? storageServices.getFileDownloadUrl(bike.getPucUploadUrl()) : null)
+                .approvalStatus(bike.getApprovalStatus())
+                .createdAt(bike.getCreatedAt())
+                .registrationExpiry(bike.getRegistrationExpiry())
+                .pucExpiry(bike.getPucExpiry())
+                .insurance(insDto)
+                .images(imageDtos)
                 .build();
     }
 

@@ -93,6 +93,12 @@ services:
     networks:
       - bike-rental-network
 
+  # booking-service:
+  #   build:
+  #     context: ./backend/booking-service
+  #   ports:
+  #     - "8085:8085"
+
   api-gateway:
     build:
       context: ./backend/api-gateway
