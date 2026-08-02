@@ -1,8 +1,7 @@
 // AUTO-EXTRACTED (verbatim) from BikeRentalSite_optimisedUI.jsx — do not edit logic.
 import { useState } from "react";
-
 import axios from "axios";
-
+import { getToken } from "../../../lib/Authstorage.js";
 import {
   ArrowRight,
   Award,
@@ -20,20 +19,35 @@ import {
   Mail,
   MapPin,
   Phone,
-  PhoneCall,
   User,
 } from "lucide-react";
-import { ENTITY_TYPES, MONTHS, STATES } from "../../../constants";
+import {
+  ENTITY_TYPES,
+  FIELD_LIMITS,
+  IN_CITIES,
+  MONTHS,
+  STATES,
+} from "../../../constants";
 import { RX, pwScore } from "../../../lib/validation.js";
 import { Field } from "../../../ui";
 import { DocSlot } from "../components";
-import partnerApi from "../../../api/partnerApi";
+
+const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+
+// Mirrors StorageServicesImpl's ALLOWED_CONTENT_TYPES on the backend so a bad
+// file is rejected client-side before we even ask for an upload URL.
+const ALLOWED_DOC_TYPES = [
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/webp",
+  "application/pdf",
+];
 
 export function PartnerRegisterPage({ onSubmit, onLogin, onHome, session }) {
   // A signed-in customer adding the PARTNER role keeps one account:
   // skip account creation, prefill from the existing user record.
   const linked = !!session;
-
   const [kind, setKind] = useState("individual"); // individual | business
   const isBiz = kind === "business";
   const [step, setStep] = useState(linked ? 1 : 0);
@@ -42,14 +56,18 @@ export function PartnerRegisterPage({ onSubmit, onLogin, onHome, session }) {
     phone: session?.phone || "",
     pw: "",
     cpw: "",
+    first: session?.name?.split(" ")[0] || "",
+    last: session?.name?.split(" ").slice(1).join(" ") || "",
     ownerName: session?.name || "",
     business: "",
+    tradeName: "",
     type: "Proprietorship",
     yearEst: "",
     pan: "",
     gstin: "",
     udyam: "",
     signatory: "",
+    signatoryDesignation: "",
     altEmail: "",
     altPhone: "",
     addr1: "",
@@ -57,7 +75,6 @@ export function PartnerRegisterPage({ onSubmit, onLogin, onHome, session }) {
     city: "",
     state: "Maharashtra",
     pincode: "",
-    contact247: "",
     rmcNo: "",
     rmcAuthority: "",
     rmcFrom: "",
@@ -74,40 +91,155 @@ export function PartnerRegisterPage({ onSubmit, onLogin, onHome, session }) {
   const [showPw, setShowPw] = useState(false);
   const [done, setDone] = useState(false);
   const set = (k) => (e) => setV((p) => ({ ...p, [k]: e.target.value }));
+  // Digits-only (phone/pincode/account) and uppercase-alphanumeric (PAN/GSTIN/IFSC) setters,
+  // each hard-capped so a user can't over-type the field.
+  const setNum = (k, max) => (e) =>
+    setV((p) => ({
+      ...p,
+      [k]: e.target.value.replace(/\D/g, "").slice(0, max),
+    }));
+  const setUpper = (k, max) => (e) =>
+    setV((p) => ({
+      ...p,
+      [k]: e.target.value
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, "")
+        .slice(0, max),
+    }));
   const blur = (k) => () => setT((p) => ({ ...p, [k]: true }));
   const score = pwScore(v.pw);
 
-  const [apiError, setApiError] = useState(null);
-  const [saving, setSaving] = useState(false);
+  // Two-step upload: 1) ask the backend for a pre-signed MinIO PUT URL + the
+  // permanent fileUrl, 2) PUT the raw file straight to MinIO. Only the
+  // resulting fileUrl is ever sent in the partner profile submit — the file
+  // itself never touches the partner API.
+  const uploadDocument = async (doc, file) => {
+    const k = doc.k;
+    if (!ALLOWED_DOC_TYPES.includes(file.type)) {
+      setDocs((p) => ({
+        ...p,
+        [k]: {
+          name: file.name,
+          status: "error",
+          fileUrl: null,
+          error: "Only JPG, PNG, WEBP, and PDF files are allowed.",
+        },
+      }));
+      setT((p) => ({ ...p, [`doc_${k}`]: true }));
+      return;
+    }
+    setDocs((p) => ({
+      ...p,
+      [k]: { name: file.name, status: "uploading", fileUrl: null, error: null },
+    }));
+    setT((p) => ({ ...p, [`doc_${k}`]: true }));
+    try {
+      const token = getToken();
+      const { data } = await axios.post(
+        `${baseUrl}/api/v1/partners/documents/upload-url`,
+        {
+          fileName: file.name,
+          contentType: file.type,
+          documentType: doc.docType,
+        },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      const { uploadUrl, fileUrl } = data;
+      // Pre-signed URL carries its own auth in the query string — no bearer
+      // header here, and this request goes straight to MinIO, not baseUrl.
+      await axios.put(uploadUrl, file, {
+        headers: { "Content-Type": file.type },
+      });
+      setDocs((p) => ({
+        ...p,
+        [k]: { name: file.name, status: "uploaded", fileUrl, error: null },
+      }));
+    } catch (err) {
+      setDocs((p) => ({
+        ...p,
+        [k]: {
+          name: file.name,
+          status: "error",
+          fileUrl: null,
+          error: err.response?.data?.message || "Upload failed. Try again.",
+        },
+      }));
+    }
+  };
 
-  // documents differ by owner type
+  // documents differ by owner type. `k` is the local form key; `docType` is the
+  // exact value the backend expects in the upload-url request's documentType field.
   const docList = isBiz
     ? [
-        { k: "gst", label: "GST certificate", required: true },
-        { k: "pan", label: "Business PAN card", required: true },
+        {
+          k: "gst",
+          docType: "GST_CERTIFICATE",
+          label: "GST certificate",
+          required: true,
+        },
+        {
+          k: "pan",
+          docType: "PAN_CARD",
+          label: "Business PAN card",
+          required: true,
+        },
         {
           k: "incorp",
+          docType: "INCORPORATION_CERTIFICATE",
           label: "Incorporation / Shop & Establishment",
           required: true,
         },
-        { k: "cheque", label: "Cancelled cheque", required: true },
-        { k: "rmc", label: "Rent-a-Motorcycle licence", required: false },
-        { k: "udyam", label: "Udyam / MSME certificate", required: true },
+        {
+          k: "cheque",
+          docType: "CANCELLED_CHEQUE",
+          label: "Cancelled cheque",
+          required: true,
+        },
+        {
+          k: "rmc",
+          docType: "RENTAL_LICENSE",
+          label: "Rent-a-Motorcycle licence",
+          required: false,
+        },
+        {
+          k: "udyam",
+          docType: "UDYAM_CERTIFICATE",
+          label: "Udyam / MSME certificate",
+          required: true,
+        },
       ]
     : [
-        { k: "pan", label: "PAN card", required: true },
+        { k: "pan", docType: "PAN_CARD", label: "PAN card", required: true },
         {
           k: "id",
+          docType: "GOVERNMENT_ID",
           label: "Government ID (Aadhaar / Passport)",
           required: true,
         },
-        { k: "address", label: "Address proof", required: true },
-        { k: "cheque", label: "Cancelled cheque / passbook", required: true },
-        { k: "rmc", label: "Rent-a-Motorcycle licence", required: false },
+        {
+          k: "address",
+          docType: "ADDRESS_PROOF",
+          label: "Address proof",
+          required: true,
+        },
+        {
+          k: "cheque",
+          docType: "CANCELLED_CHEQUE",
+          label: "Cancelled cheque / passbook",
+          required: true,
+        },
+        {
+          k: "rmc",
+          docType: "RENTAL_LICENSE",
+          label: "Rent-a-Motorcycle licence",
+          required: false,
+        },
       ];
 
   const e = {};
   // step 0 — account
+  if (!v.first.trim()) e.first = "First name is required.";
+  if (!v.last.trim()) e.last = "Last name is required.";
   if (!v.email) e.email = "Email is required.";
   else if (!RX.email.test(v.email)) e.email = "Enter a valid email.";
   if (!v.phone) e.phone = "Mobile number is required.";
@@ -128,6 +260,8 @@ export function PartnerRegisterPage({ onSubmit, onLogin, onHome, session }) {
     )
       e.gstin = "15-character GSTIN e.g. 27ABCDE1234F1Z5.";
     if (!v.signatory.trim()) e.signatory = "Authorised signatory is required.";
+    if (!v.signatoryDesignation.trim())
+      e.signatoryDesignation = "Signatory designation is required.";
   }
   if (!/^[A-Z]{5}\d{4}[A-Z]$/.test(v.pan.trim().toUpperCase()))
     e.pan = "PAN format e.g. ABCDE1234F.";
@@ -142,12 +276,6 @@ export function PartnerRegisterPage({ onSubmit, onLogin, onHome, session }) {
   if (!v.city.trim()) e.city = "City is required.";
   if (!/^\d{6}$/.test(v.pincode.trim()))
     e.pincode = "Pincode must be 6 digits.";
-  if (isBiz) {
-    if (!v.contact247)
-      e.contact247 = "A 24×7 number is required for businesses.";
-    else if (!RX.phone.test(v.contact247.replace(/\D/g, "")))
-      e.contact247 = "Enter a valid 10-digit number.";
-  }
   // step 3 — compliance
   if (isBiz && v.rmcNo.trim() && !v.rmcTo)
     e.rmcTo = "Add the licence expiry date.";
@@ -158,24 +286,32 @@ export function PartnerRegisterPage({ onSubmit, onLogin, onHome, session }) {
     e.accNo = "Enter a valid account number.";
   if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(v.ifsc.trim().toUpperCase()))
     e.ifsc = "IFSC format e.g. HDFC0001234.";
-  //docList.filter((d) => d.required).forEach((d) => { if (!docs[d.k]) e[`doc_${d.k}`] = "Required"; });
+  docList
+    .filter((d) => d.required)
+    .forEach((d) => {
+      const entry = docs[d.k];
+      if (!entry || entry.status === "error")
+        e[`doc_${d.k}`] = entry?.error || "Required";
+      else if (entry.status === "uploading")
+        e[`doc_${d.k}`] = "Still uploading.";
+      else if (entry.status !== "uploaded") e[`doc_${d.k}`] = "Required";
+    });
 
   const stepFields = [
-    linked ? [] : ["email", "phone", "pw", "cpw"],
+    linked ? [] : ["first", "last", "email", "phone", "pw", "cpw"],
     isBiz
       ? [
           "business",
           "gstin",
           "signatory",
+          "signatoryDesignation",
           "pan",
           "yearEst",
           "altEmail",
           "altPhone",
         ]
       : ["ownerName", "pan", "altEmail", "altPhone"],
-    isBiz
-      ? ["addr1", "city", "pincode", "contact247"]
-      : ["addr1", "city", "pincode"],
+    ["addr1", "city", "pincode"],
     [
       "rmcTo",
       "accHolder",
@@ -202,8 +338,7 @@ export function PartnerRegisterPage({ onSubmit, onLogin, onHome, session }) {
     setStep((x) => Math.max(linked ? 1 : 0, x - 1));
     window.scrollTo({ top: 0 });
   };
-
-  const submit = async () => {
+  const submit = () => {
     if (!stepValid(3)) {
       setT((p) => ({
         ...p,
@@ -211,83 +346,35 @@ export function PartnerRegisterPage({ onSubmit, onLogin, onHome, session }) {
       }));
       return;
     }
-
-    // @Pattern rejects "" but skips null — blanks must go as null.
-    const n = (s) => (s && s.trim() ? s.trim() : null);
-    const up = (s) => (s && s.trim() ? s.trim().toUpperCase() : null);
-    const fullName = isBiz ? v.signatory.trim() : v.ownerName.trim();
-    const parts = fullName.split(/\s+/).filter(Boolean);
-    const firstName = parts[0] || "";
-    const lastName = parts.slice(1).join(" ") || parts[0] || "";
-    if (!linked && (firstName.length < 3 || lastName.length < 3)) {
-      setApiError(
-        "Please enter your full name — first and last, each at least 3 characters.",
-      );
-      return;
-    }
-    setSaving(true);
-    setApiError(null);
-    try {
-      // 3a — auth DB: create the user account (skipped if already signed in)
-      if (!linked) {
-        await axios.post("/api/v1/auth/register", {
-          firstName,
-          lastName,
-          email: v.email.trim(),
-          phoneNumber: v.phone.trim(),
-          password: v.pw,
-          captchaToken: "slider-verified",
-        });
-
-        // 3b — get a token; partnerApi's interceptor reads it from localStorage
-        const { data } = await axios.post("/api/v1/auth/login", {
-          email: v.email.trim(),
-          password: v.pw,
-        });
-        localStorage.setItem("token", data.token);
-      }
-
-      // 3c — partner DB: create the application (PENDING)
-      await partnerApi.onboardPartner({
-        sellerType: isBiz ? "COMMERCIAL_DEALER" : "INDIVIDUAL",
-        ownerName: fullName,
-        alternateEmail: n(v.altEmail),
-        alternatePhoneNumber: n(v.altPhone),
-        panNumber: up(v.pan),
-        contactPhone: isBiz ? n(v.contact247) : n(v.phone),
-        addressLine1: n(v.addr1),
-        addressLine2: n(v.addr2),
-        city: n(v.city),
-        state: n(v.state),
-        pincode: n(v.pincode),
-        businessName: isBiz ? n(v.business) : null,
-        businessType: isBiz ? n(v.type) : null,
-        gstNumber: isBiz ? up(v.gstin) : null,
-        yearOfEstablishment: n(v.yearEst),
-        udyamNumber: n(v.udyam),
-        signatoryName: isBiz ? n(v.signatory) : null,
-        licenseNumber: n(v.rmcNo),
-        issuingAuthority: n(v.rmcAuthority),
-        licenseValidFrom: n(v.rmcFrom),
-        licenseValidTo: n(v.rmcTo),
-        payoutAccount: {
-          accountHolder: n(v.accHolder),
-          accountNumber: n(v.accNo),
-          ifsc: up(v.ifsc),
-          bankName: n(v.bankName),
-        },
-        documents: [],
-      });
-
-      setDone(true);
-    } catch (err) {
-      setApiError(
-        err.response?.data?.message || "Could not submit your application.",
-      );
-      window.scrollTo({ top: 0 });
-    } finally {
-      setSaving(false);
-    }
+    onSubmit({
+      ownerType: isBiz ? "Business" : "Individual",
+      linkedUser: linked ? session.email : null,
+      name: isBiz ? v.signatory.trim() : v.ownerName.trim(),
+      business: isBiz
+        ? v.business.trim()
+        : `${v.ownerName.trim().split(" ")[0]}'s Rentals`,
+      city: v.city.trim(),
+      area: v.addr2.trim() || v.addr1.trim(),
+      date: `${new Date().getDate()} ${MONTHS[new Date().getMonth()]} ${new Date().getFullYear()}`,
+      email: v.email,
+      phone: v.phone,
+      firstName: v.first.trim(),
+      lastName: v.last.trim(),
+      tradeName: isBiz ? v.tradeName.trim() : "",
+      signatoryDesignation: isBiz ? v.signatoryDesignation.trim() : "",
+      gstin: isBiz ? v.gstin.toUpperCase() : "N/A (individual)",
+      type: isBiz ? v.type : "Individual owner",
+      since: v.yearEst || String(new Date().getFullYear()),
+      fleet: 0,
+      complaints: [],
+      // documentType -> permanent fileUrl, exactly what the partner profile
+      // API's document URL fields expect (never the raw file).
+      documents: docList.reduce((acc, d) => {
+        if (docs[d.k]?.fileUrl) acc[d.docType] = docs[d.k].fileUrl;
+        return acc;
+      }, {}),
+    });
+    setDone(true);
   };
 
   if (done)
@@ -474,6 +561,36 @@ export function PartnerRegisterPage({ onSubmit, onLogin, onHome, session }) {
 
               <div className="mt-5 grid gap-4 sm:grid-cols-2">
                 <Field
+                  icon={User}
+                  label="First Name"
+                  required
+                  error={e.first}
+                  show={err("first")}
+                >
+                  <input
+                    value={v.first}
+                    onChange={set("first")}
+                    onBlur={blur("first")}
+                    placeholder="Aarav"
+                    className="br-input w-full text-sm"
+                  />
+                </Field>
+                <Field
+                  icon={User}
+                  label="Last Name"
+                  required
+                  error={e.last}
+                  show={err("last")}
+                >
+                  <input
+                    value={v.last}
+                    onChange={set("last")}
+                    onBlur={blur("last")}
+                    placeholder="Sharma"
+                    className="br-input w-full text-sm"
+                  />
+                </Field>
+                <Field
                   icon={Mail}
                   label="Email"
                   required
@@ -502,9 +619,11 @@ export function PartnerRegisterPage({ onSubmit, onLogin, onHome, session }) {
                   </span>
                   <input
                     value={v.phone}
-                    onChange={set("phone")}
+                    onChange={setNum("phone", FIELD_LIMITS.phone)}
                     onBlur={blur("phone")}
-                    placeholder="98765 43210"
+                    placeholder="9876543210"
+                    maxLength={FIELD_LIMITS.phone}
+                    inputMode="numeric"
                     className="br-input w-full text-sm"
                   />
                 </Field>
@@ -609,9 +728,10 @@ export function PartnerRegisterPage({ onSubmit, onLogin, onHome, session }) {
                 >
                   <input
                     value={v.pan}
-                    onChange={set("pan")}
+                    onChange={setUpper("pan", FIELD_LIMITS.pan)}
                     onBlur={blur("pan")}
                     placeholder="ABCDE1234F"
+                    maxLength={FIELD_LIMITS.pan}
                     className="br-input w-full text-sm"
                   />
                 </Field>
@@ -637,9 +757,11 @@ export function PartnerRegisterPage({ onSubmit, onLogin, onHome, session }) {
                 >
                   <input
                     value={v.altPhone}
-                    onChange={set("altPhone")}
+                    onChange={setNum("altPhone", FIELD_LIMITS.phone)}
                     onBlur={blur("altPhone")}
                     placeholder="Optional"
+                    maxLength={FIELD_LIMITS.phone}
+                    inputMode="numeric"
                     className="br-input w-full text-sm"
                   />
                 </Field>
@@ -666,6 +788,18 @@ export function PartnerRegisterPage({ onSubmit, onLogin, onHome, session }) {
                     onChange={set("business")}
                     onBlur={blur("business")}
                     placeholder="Speedster Rentals Pvt. Ltd."
+                    className="br-input w-full text-sm"
+                  />
+                </Field>
+                <Field
+                  icon={Building2}
+                  label="Trade Name"
+                  tooltip="The 'doing business as' name shown to customers, if different from the registered legal name."
+                >
+                  <input
+                    value={v.tradeName}
+                    onChange={set("tradeName")}
+                    placeholder="Speedster Rentals"
                     className="br-input w-full text-sm"
                   />
                 </Field>
@@ -703,9 +837,10 @@ export function PartnerRegisterPage({ onSubmit, onLogin, onHome, session }) {
                 >
                   <input
                     value={v.pan}
-                    onChange={set("pan")}
+                    onChange={setUpper("pan", FIELD_LIMITS.pan)}
                     onBlur={blur("pan")}
                     placeholder="ABCDE1234F"
+                    maxLength={FIELD_LIMITS.pan}
                     className="br-input w-full text-sm"
                   />
                 </Field>
@@ -719,9 +854,10 @@ export function PartnerRegisterPage({ onSubmit, onLogin, onHome, session }) {
                 >
                   <input
                     value={v.gstin}
-                    onChange={set("gstin")}
+                    onChange={setUpper("gstin", FIELD_LIMITS.gstin)}
                     onBlur={blur("gstin")}
                     placeholder="27ABCDE1234F1Z5"
+                    maxLength={FIELD_LIMITS.gstin}
                     className="br-input w-full text-sm"
                   />
                 </Field>
@@ -750,6 +886,22 @@ export function PartnerRegisterPage({ onSubmit, onLogin, onHome, session }) {
                   />
                 </Field>
                 <Field
+                  icon={Briefcase}
+                  label="Signatory Designation"
+                  required
+                  tooltip="The signatory's title or role in the business, e.g. Director, Partner, Proprietor."
+                  error={e.signatoryDesignation}
+                  show={err("signatoryDesignation")}
+                >
+                  <input
+                    value={v.signatoryDesignation}
+                    onChange={set("signatoryDesignation")}
+                    onBlur={blur("signatoryDesignation")}
+                    placeholder="Director"
+                    className="br-input w-full text-sm"
+                  />
+                </Field>
+                <Field
                   icon={Mail}
                   label="Alternate Email"
                   error={e.altEmail}
@@ -771,9 +923,11 @@ export function PartnerRegisterPage({ onSubmit, onLogin, onHome, session }) {
                 >
                   <input
                     value={v.altPhone}
-                    onChange={set("altPhone")}
+                    onChange={setNum("altPhone", FIELD_LIMITS.phone)}
                     onBlur={blur("altPhone")}
                     placeholder="Optional"
+                    maxLength={FIELD_LIMITS.phone}
+                    inputMode="numeric"
                     className="br-input w-full text-sm"
                   />
                 </Field>
@@ -824,13 +978,17 @@ export function PartnerRegisterPage({ onSubmit, onLogin, onHome, session }) {
                   error={e.city}
                   show={err("city")}
                 >
-                  <input
+                  <select
                     value={v.city}
                     onChange={set("city")}
                     onBlur={blur("city")}
-                    placeholder="Pune"
-                    className="br-input w-full text-sm"
-                  />
+                    className="br-input w-full bg-transparent text-sm"
+                  >
+                    {v.city === "" && <option value="">Select…</option>}
+                    {IN_CITIES.map((o) => (
+                      <option key={o}>{o}</option>
+                    ))}
+                  </select>
                 </Field>
                 <Field icon={Building2} label="State" required>
                   <select
@@ -852,30 +1010,14 @@ export function PartnerRegisterPage({ onSubmit, onLogin, onHome, session }) {
                 >
                   <input
                     value={v.pincode}
-                    onChange={set("pincode")}
+                    onChange={setNum("pincode", FIELD_LIMITS.pincode)}
                     onBlur={blur("pincode")}
                     placeholder="411001"
+                    maxLength={FIELD_LIMITS.pincode}
+                    inputMode="numeric"
                     className="br-input w-full text-sm"
                   />
                 </Field>
-                {isBiz && (
-                  <Field
-                    icon={PhoneCall}
-                    label="24×7 Contact Number"
-                    required
-                    tooltip="Rental businesses must keep a line reachable day and night."
-                    error={e.contact247}
-                    show={err("contact247")}
-                  >
-                    <input
-                      value={v.contact247}
-                      onChange={set("contact247")}
-                      onBlur={blur("contact247")}
-                      placeholder="98765 43210"
-                      className="br-input w-full text-sm"
-                    />
-                  </Field>
-                )}
               </div>
             </>
           )}
@@ -986,9 +1128,11 @@ export function PartnerRegisterPage({ onSubmit, onLogin, onHome, session }) {
                 >
                   <input
                     value={v.accNo}
-                    onChange={set("accNo")}
+                    onChange={setNum("accNo", FIELD_LIMITS.accNo)}
                     onBlur={blur("accNo")}
-                    placeholder="00000000000000"
+                    placeholder="Bank account number"
+                    maxLength={FIELD_LIMITS.accNo}
+                    inputMode="numeric"
                     className="br-input w-full text-sm"
                   />
                 </Field>
@@ -1001,9 +1145,10 @@ export function PartnerRegisterPage({ onSubmit, onLogin, onHome, session }) {
                 >
                   <input
                     value={v.ifsc}
-                    onChange={set("ifsc")}
+                    onChange={setUpper("ifsc", FIELD_LIMITS.ifsc)}
                     onBlur={blur("ifsc")}
                     placeholder="HDFC0001234"
+                    maxLength={FIELD_LIMITS.ifsc}
                     className="br-input w-full text-sm"
                   />
                 </Field>
@@ -1026,8 +1171,8 @@ export function PartnerRegisterPage({ onSubmit, onLogin, onHome, session }) {
                   <DocSlot
                     key={d.k}
                     doc={d}
-                    file={docs[d.k]}
-                    onPick={(name) => setDocs((p) => ({ ...p, [d.k]: name }))}
+                    entry={docs[d.k]}
+                    onPick={(file) => uploadDocument(d, file)}
                     error={t[`doc_${d.k}`] && e[`doc_${d.k}`]}
                   />
                 ))}
@@ -1070,16 +1215,7 @@ export function PartnerRegisterPage({ onSubmit, onLogin, onHome, session }) {
               </div>
             </>
           )}
-          {apiError && (
-            <p className="mb-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">
-              {apiError}
-            </p>
-          )}
-          {apiError && (
-            <p className="mb-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">
-              {apiError}
-            </p>
-          )}
+
           <div className="mt-6 flex gap-2.5">
             {step > (linked ? 1 : 0) && (
               <button
@@ -1099,7 +1235,7 @@ export function PartnerRegisterPage({ onSubmit, onLogin, onHome, session }) {
             ) : (
               <button
                 onClick={submit}
-                disabled={!stepValid(3) || saving}
+                disabled={!stepValid(3)}
                 className="br-btn br-display flex-1 rounded-xl py-3 text-sm font-semibold"
                 style={
                   !stepValid(3)
@@ -1111,7 +1247,7 @@ export function PartnerRegisterPage({ onSubmit, onLogin, onHome, session }) {
                     : undefined
                 }
               >
-                {saving ? "Submitting…" : "Submit application"}
+                Submit application
               </button>
             )}
           </div>

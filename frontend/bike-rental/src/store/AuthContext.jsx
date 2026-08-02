@@ -4,10 +4,11 @@ import { DEMO_USERS } from "../mock";
 import {
   normalizeSession,
   fetchCustomerProfile,
+  fetchCustomerKyc,
   normalizeCustomerProfile,
+  normalizeKyc,
 } from "../lib/session.js";
-
-const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+import { getToken, clearAuth } from "../lib/Authstorage.js";
 
 // Auth store — session + the account (`users`) table lifted out of App.
 // Behaviour is identical to the original App-local useState; only ownership moved.
@@ -23,24 +24,26 @@ export function AuthProvider({ children }) {
   // Survive a page refresh: if a token is already in localStorage, ask /auth/me for the
   // authoritative session instead of trying to decode anything from the token itself.
   useEffect(() => {
-    const token = localStorage.getItem("token");
+    const token = getToken();
     if (!token) return;
     axios
-      .get(`${baseUrl}/api/v1/auth/me`, {
+      .get(`/api/v1/auth/me`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       .then(async (res) => {
-        const customer = await fetchCustomerProfile(token, res.data);
+        const [customer, kyc] = await Promise.all([
+          fetchCustomerProfile(token, res.data),
+          fetchCustomerKyc(token, res.data),
+        ]);
         setSession({
           ...normalizeSession(res.data, token),
           ...normalizeCustomerProfile(customer),
+          ...normalizeKyc(kyc),
         });
       })
       .catch(() => {
         // token is invalid/expired — clear it so the app doesn't think we're logged in
-        localStorage.removeItem("token");
-        localStorage.removeItem("userId");
-        localStorage.removeItem("firstName");
+        clearAuth();
       });
   }, []);
 

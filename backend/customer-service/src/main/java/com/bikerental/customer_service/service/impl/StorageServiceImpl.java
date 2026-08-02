@@ -1,67 +1,56 @@
 package com.bikerental.customer_service.service.impl;
-
-import com.bikerental.customer_service.dto.FileUploadRequestDto;
-import com.bikerental.customer_service.dto.FileUploadResponseDto;
-import com.bikerental.customer_service.service.StorageService;
-import io.minio.GetPresignedObjectUrlArgs;
-import io.minio.Http;
-import io.minio.MinioClient;
-import io.minio.PutObjectArgs;
-import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
-
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+
+import com.bikerental.customer_service.dto.UploadUrlRequestDTO;
+import com.bikerental.customer_service.dto.UploadUrlResponseDTO;
+import com.bikerental.customer_service.service.StorageService;
+
+import io.minio.GetPresignedObjectUrlArgs;
+import io.minio.Http.Method;
+import io.minio.MinioClient;
+
 @Service
-@RequiredArgsConstructor
 public class StorageServiceImpl implements StorageService {
 
-    private final MinioClient minioClient;
+	private final MinioClient publicMinioClient;
+	
+	public StorageServiceImpl(
+			@Qualifier("publicMinioClient") MinioClient publiMinioClient) {
+		this.publicMinioClient = publiMinioClient;
+	}
 
-    @Value("${minio.bucket-name}")
-    private String bucketName;
+	@Value("${minio.bucket-name}")
+	private String bucketName;
 
-    @Value("${minio.url}")
-    private String minioUrl;
+	@Override
+	public UploadUrlResponseDTO generateUploadUrl(Integer userId,
+			UploadUrlRequestDTO request) {
 
-    @Override
-    public FileUploadResponseDto generateUploadUrl(FileUploadRequestDto request) {
+		try {
 
-        try {
+			String objectName = "customer/" + userId + "/"
+					+ request.getDocumentType() + "/" + UUID.randomUUID() + "-"
+					+ request.getFileName();
 
-            String extension = "";
+			GetPresignedObjectUrlArgs args = GetPresignedObjectUrlArgs.builder()
+					.method(Method.PUT).bucket(bucketName).object(objectName)
+					.expiry(15, TimeUnit.MINUTES).build();
 
-            if (request.getFileName().contains(".")) {
-                extension = request.getFileName()
-                        .substring(request.getFileName().lastIndexOf("."));
-            }
+			String url = publicMinioClient.getPresignedObjectUrl(args);
 
-            String objectName = "kyc/"
-                    + UUID.randomUUID()
-                    + extension;
+			return new UploadUrlResponseDTO(url, objectName);
 
-            String uploadUrl = minioClient.getPresignedObjectUrl(
-                    GetPresignedObjectUrlArgs.builder()
-                            .method(Http.Method.PUT)
-                            .bucket(bucketName)
-                            .object(objectName)
-                            .expiry(10, TimeUnit.MINUTES)
-                            .build()
-            );
+		} catch (Exception e) {
 
-            String fileUrl = minioUrl
-                    + "/"
-                    + bucketName
-                    + "/"
-                    + objectName;
+			e.printStackTrace();
 
-            return new FileUploadResponseDto(uploadUrl, fileUrl);
+			throw new RuntimeException("Failed to generate upload url");
+		}
+	}
 
-        } catch (Exception e) {
-            throw new RuntimeException("Unable to generate upload URL", e);
-        }
-    }
 }

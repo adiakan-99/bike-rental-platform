@@ -5,7 +5,6 @@ import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -18,35 +17,30 @@ import com.bikerental.auth_service.dto.ForgotPasswordRequest;
 import com.bikerental.auth_service.dto.LoginRequest;
 import com.bikerental.auth_service.dto.RegisterRequest;
 import com.bikerental.auth_service.dto.ResetPasswordRequest;
+import com.bikerental.auth_service.dto.UpdateProfileRequestDTO;
+import com.bikerental.auth_service.dto.UpdateProfileResponseDTO;
 import com.bikerental.auth_service.dto.UserProfileResponse;
+import com.bikerental.auth_service.security.CustomUserDetails;
+import com.bikerental.auth_service.security.JwtUser;
 import com.bikerental.auth_service.service.AuthenticationService;
-import com.bikerental.auth_service.service.CaptchaService;
+import com.bikerental.auth_service.service.CaptchaServiceImpl;
 import com.bikerental.auth_service.service.UserService;
 
 import jakarta.validation.Valid;
+import lombok.AllArgsConstructor;
 
 @RestController
 @RequestMapping("/api/v1/auth")
+@AllArgsConstructor
 public class AuthController {
 
 	private final AuthenticationService authenticationService;
-
 	private final UserService userService;
-
-	private final CaptchaService captchaService;
-
-	public AuthController(AuthenticationService authenticationService,
-			UserService userService, CaptchaService captchaService) {
-		this.authenticationService = authenticationService;
-		this.userService = userService;
-		this.captchaService = captchaService;
-	}
+	private final CaptchaServiceImpl captchaService;
 
 	@PostMapping("/register")
-	@CrossOrigin(origins = "http://localhost:5173")
 	public ResponseEntity<?> register(
 			@Valid @RequestBody RegisterRequest request) {
-
 		boolean isHuman = captchaService
 				.verifyCaptcha(request.getCaptchaToken());
 
@@ -62,53 +56,53 @@ public class AuthController {
 
 	@PostMapping("/login")
 	public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request) {
-
-		System.out.println(request.getEmail());
-		System.out.println(request.getPassword());
-
 		return ResponseEntity.ok(authenticationService.login(request));
-
 	}
 
 	@GetMapping("/me")
 	public ResponseEntity<UserProfileResponse> getCurrentUser(
 			Authentication authentication) {
-
 		String email = authentication.getName();
-
 		UserProfileResponse response = userService.getCurrentUser(email);
-
 		return ResponseEntity.ok(response);
 	}
 
 	@PutMapping("/password")
 	public ResponseEntity<?> changePassword(
-			@RequestBody ChangePasswordRequest request,
-			Authentication authenctication) {
-
-		String email = authenctication.getName();
-
+			@Valid @RequestBody ChangePasswordRequest request,
+			Authentication authentication) {
+		String email = authentication.getName();
 		userService.changePassword(email, request);
-
-		return ResponseEntity.ok("Password Updated Successfully");
-
+		return ResponseEntity
+				.ok(Map.of("message", "Password updated successfully"));
 	}
 
 	@PostMapping("/forgot-password")
 	public ResponseEntity<?> forgotPassword(
-			@RequestBody ForgotPasswordRequest request) {
-
-		return ResponseEntity.ok(
-				"If an account exists, a password reset link has been sent");
-
+			@Valid @RequestBody ForgotPasswordRequest request) {
+		return ResponseEntity.ok(Map.of("message",
+				"If an account exists, a password reset link has been sent"));
 	}
 
+	@PostMapping("/reset-password")
 	public ResponseEntity<?> resetPassword(
-			@RequestBody ResetPasswordRequest request) {
-
+			@Valid @RequestBody ResetPasswordRequest request) {
 		userService.resetPassword(request);
+		return ResponseEntity
+				.ok(Map.of("message", "Password reset successfully"));
+	}
 
-		return ResponseEntity.ok("Password reset successfully ");
+	@PutMapping("/me")
+	public ResponseEntity<UpdateProfileResponseDTO> updateProfile(
+			Authentication authentication,
+			@Valid @RequestBody UpdateProfileRequestDTO request) {
+
+		CustomUserDetails userDetails = (CustomUserDetails) authentication
+				.getPrincipal();
+
+		return ResponseEntity
+				.ok(userService.updateProfile(userDetails.getUserId(), request));
+
 	}
 
 }

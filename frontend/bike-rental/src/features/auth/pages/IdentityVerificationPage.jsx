@@ -5,7 +5,7 @@
 // Same flow works for a first submission and for a re-submission after rejection, and
 // for both KYC entry points (the booking flow and the "Complete KYC" banner), since
 // both render this page.
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import axios from "axios";
 import {
   ChevronLeft,
@@ -24,11 +24,23 @@ import {
 import { Field, Label } from "../../../ui";
 import { RX } from "../../../lib/validation.js";
 import { uploadDocument, isAllowedUploadType } from "../../../lib/upload.js";
-import { KYC_STATUS } from "../../../constants";
+import { fetchCustomerKyc } from "../../../lib/session.js";
+import { getToken } from "../../../lib/Authstorage.js";
+import { FIELD_LIMITS, KYC_STATUS } from "../../../constants";
 import { useAuth } from "../../../store";
 
-const UPLOAD_ENDPOINT = "/api/storage/upload-url";
-const KYC_SUBMIT_ENDPOINT = "/api/customers/me/kyc";
+const UPLOAD_ENDPOINT = "/api/v1/customers/storage/upload-url";
+const KYC_ENDPOINT = "/api/v1/customers/me/kyc"; // POST = create, PUT = update (resubmit)
+
+// Backend idType may be an enum (AADHAAR / VOTER_ID); the form uses display labels.
+const idTypeToLabel = (t) =>
+  ({ AADHAAR: "Aadhaar", PASSPORT: "Passport", VOTER_ID: "Voter ID" })[t] ||
+  t ||
+  "Aadhaar";
+// Reverse: form label -> backend enum. Sending "Aadhaar" fails Jackson enum parsing.
+const labelToIdType = (l) =>
+  ({ Aadhaar: "AADHAAR", Passport: "PASSPORT", "Voter ID": "VOTER_ID" })[l] ||
+  l;
 
 // One upload slot (government ID or driving licence). Mirrors the partner DocSlot
 // lifecycle: idle -> uploading -> uploaded -> error, each rendered inline.
@@ -151,12 +163,110 @@ export function IdentityVerificationPage({
   const [lic, setLic] = useState(false);
   const [busy, setBusy] = useState(false);
   const [submitErr, setSubmitErr] = useState("");
+  const [record, setRecord] = useState(null); // existing KYC record from the backend, if any
+  const [loading, setLoading] = useState(true); // fetching the existing record on mount
   const set = (k) => (e) =>
     setV((p) => ({ ...p, [k]: e.target ? e.target.value : e }));
   const blur = (k) => () => setT((p) => ({ ...p, [k]: true }));
 
+  // On mount, read any existing KYC record. This is the authoritative check that stops
+  // duplicate submission (a record already SUBMITTED/VERIFIED shows status, not the form)
+  // and lets a REJECTED rider resubmit with their previous details prefilled.
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const rec = await fetchCustomerKyc(getToken(), session);
+      if (!alive) return;
+      if (rec) {
+        setRecord(rec);
+        if (rec.kycStatus) updateSession({ kycStatus: rec.kycStatus });
+        // prefill so a resubmission isn't blank; existing document URLs count as uploaded
+        setV((p) => ({
+          ...p,
+          dateOfBirth: rec.dateOfBirth || "",
+          idType: idTypeToLabel(rec.idType),
+          idNumber: rec.idNumber || "",
+          drivingLicenseNumber: rec.drivingLicenseNumber || "",
+          licenseValidTo: rec.licenseValidTo || "",
+          idDoc: rec.idUploadUrl
+            ? {
+                name: "Current ID document",
+                status: "uploaded",
+                url: rec.idUploadUrl,
+                error: null,
+              }
+            : null,
+          dlDoc: rec.drivingLicenceUrl
+            ? {
+                name: "Current licence document",
+                status: "uploaded",
+                url: rec.drivingLicenceUrl,
+                error: null,
+              }
+            : null,
+        }));
+      }
+      setLoading(false);
+    })();
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Freshest status: the record we just fetched wins over whatever the session had.
+  const status =
+    record?.kycStatus || session?.kycStatus || KYC_STATUS.NOT_SUBMITTED;
+
+  // ---- Still loading the existing record ----
+  if (loading) {
+    return (
+      <div className="mx-auto max-w-xl px-4 py-8 sm:px-6">
+        <div className="br-card rounded-2xl p-10 text-center shadow-sm">
+          <Loader2
+            size={26}
+            className="mx-auto animate-spin"
+            style={{ color: "var(--brand)" }}
+          />
+          <p className="mt-3 text-sm" style={{ color: "var(--mute)" }}>
+            Checking your verification status…
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // ---- Already verified: nothing to submit, just confirm ----
+  if (status === KYC_STATUS.VERIFIED) {
+    return (
+      <div className="mx-auto max-w-xl px-4 py-8 sm:px-6">
+        <button
+          onClick={onBack}
+          className="br-crumb mb-4 flex items-center gap-1.5 text-sm font-semibold"
+        >
+          <ChevronLeft size={16} /> Back
+        </button>
+        <div className="br-card rounded-2xl p-7 text-center shadow-sm">
+          <CheckCircle2
+            size={32}
+            className="mx-auto mb-3"
+            style={{ color: "var(--brand-strong)" }}
+          />
+          <h1 className="br-serif text-xl font-bold">
+            You're already verified
+          </h1>
+          <p className="mt-2 text-sm" style={{ color: "var(--mute)" }}>
+            Your identity has been verified — there's nothing more to submit.
+            You're all set
+            {bike ? ` to book ${bike.name}` : " to book"}.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   // ---- Already submitted / under review: no form, just status ----
-  if (session?.kycStatus === KYC_STATUS.SUBMITTED) {
+  if (status === KYC_STATUS.SUBMITTED) {
     return (
       <div className="mx-auto max-w-xl px-4 py-8 sm:px-6">
         <button
@@ -184,7 +294,7 @@ export function IdentityVerificationPage({
     );
   }
 
-  const wasRejected = session?.kycStatus === KYC_STATUS.REJECTED;
+  const wasRejected = status === KYC_STATUS.REJECTED;
 
   // Upload a picked file to MinIO via the storage service, tracking status on the slot.
   const pickDoc = (key, documentType) => async (file) => {
@@ -294,21 +404,21 @@ export function IdentityVerificationPage({
     setBusy(true);
     try {
       // Documents are already in MinIO — we send their permanent fileUrls, not the files.
-      const res = await axios.post(
-        KYC_SUBMIT_ENDPOINT,
-        {
-          dateOfBirth: v.dateOfBirth,
-          idType: v.idType,
-          idNumber: v.idNumber.trim(),
-          idUploadUrl: v.idDoc.url,
-          drivingLicenseNumber: v.drivingLicenseNumber.trim().toUpperCase(),
-          drivingLicenceUrl: v.dlDoc.url,
-          licenseValidTo: v.licenseValidTo,
-        },
-        {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-        },
-      );
+      // A record that already exists (e.g. after rejection) is updated with PUT; a first
+      // submission is created with POST.
+      const payload = {
+        dateOfBirth: v.dateOfBirth,
+        idType: labelToIdType(v.idType),
+        idNumber: v.idNumber.trim(),
+        idUploadUrl: v.idDoc.url,
+        drivingLicenseNumber: v.drivingLicenseNumber.trim().toUpperCase(),
+        drivingLicenceUrl: v.dlDoc.url,
+        licenseValidTo: v.licenseValidTo,
+      };
+      const headers = { Authorization: `Bearer ${getToken()}` };
+      const res = record
+        ? await axios.put(KYC_ENDPOINT, payload, { headers })
+        : await axios.post(KYC_ENDPOINT, payload, { headers });
 
       updateSession({ kycStatus: res.data.kycStatus, rejectionReason: null });
       onVerified(res.data);
@@ -392,7 +502,9 @@ export function IdentityVerificationPage({
             />
             <p className="text-xs" style={{ color: "#7a2c22" }}>
               Your previous submission was rejected
-              {session.rejectionReason ? `: ${session.rejectionReason}` : "."}{" "}
+              {session.rejectionReason
+                ? `: ${session.rejectionReason}`
+                : "."}{" "}
               Please correct the details and resubmit.
             </p>
           </div>
@@ -457,6 +569,7 @@ export function IdentityVerificationPage({
               onChange={set("drivingLicenseNumber")}
               onBlur={blur("drivingLicenseNumber")}
               placeholder="MH12 2020 0012345"
+              maxLength={FIELD_LIMITS.dl}
               className="br-input w-full text-sm"
             />
           </Field>
@@ -514,8 +627,28 @@ export function IdentityVerificationPage({
           >
             <input
               value={v.idNumber}
-              onChange={set("idNumber")}
+              onChange={(e) => {
+                let val = e.target.value;
+                if (v.idType === "Aadhaar")
+                  val = val.replace(/\D/g, "").slice(0, FIELD_LIMITS.aadhaar);
+                else
+                  val = val.slice(
+                    0,
+                    v.idType === "Passport"
+                      ? FIELD_LIMITS.passport
+                      : FIELD_LIMITS.voterId,
+                  );
+                setV((p) => ({ ...p, idNumber: val }));
+              }}
               onBlur={blur("idNumber")}
+              inputMode={v.idType === "Aadhaar" ? "numeric" : undefined}
+              maxLength={
+                v.idType === "Aadhaar"
+                  ? FIELD_LIMITS.aadhaar
+                  : v.idType === "Passport"
+                    ? FIELD_LIMITS.passport
+                    : FIELD_LIMITS.voterId
+              }
               placeholder={
                 v.idType === "Aadhaar"
                   ? "1234 5678 9012"

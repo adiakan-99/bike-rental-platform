@@ -10,7 +10,7 @@ import java.time.OffsetDateTime;
 
 @Getter
 @Setter
-public class AdminKycResponseDto {
+public class AdminKycResponseDTO {
 
     private Integer userId;
 

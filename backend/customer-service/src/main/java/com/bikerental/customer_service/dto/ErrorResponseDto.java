@@ -7,7 +7,7 @@ import java.time.OffsetDateTime;
 
 @Getter
 @AllArgsConstructor
-public class ErrorResponseDto {
+public class ErrorResponseDTO {
 
     private OffsetDateTime timestamp;
 

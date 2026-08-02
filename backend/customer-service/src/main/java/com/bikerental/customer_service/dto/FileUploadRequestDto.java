@@ -6,11 +6,12 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class FileUploadRequestDto {
+public class FileUploadRequestDTO {
 
-    @NotBlank
-    private String fileName;
+	@NotBlank
+	private String fileName;
 
-    @NotBlank
-    private String contentType;
+	@NotBlank
+	private String contentType;
+
 }
