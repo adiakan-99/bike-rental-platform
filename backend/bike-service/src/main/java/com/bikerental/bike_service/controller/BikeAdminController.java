@@ -2,7 +2,6 @@ package com.bikerental.bike_service.controller;
 
 import com.bikerental.bike_service.dto.request.BikeAdminReviewRequestDto;
 import com.bikerental.bike_service.dto.response.BikeAdminActionResponseDto;
-import com.bikerental.bike_service.dto.response.FleetListingDto;
 import com.bikerental.bike_service.dto.response.PendingBikeDto;
 import com.bikerental.bike_service.service.BikeServices;
 import jakarta.validation.Valid;
@@ -39,5 +38,11 @@ public class BikeAdminController {
         Integer userId = getAuthenticatedUserId();
 
         return ResponseEntity.ok(bikeServices.reviewBikeListing(userId, id, requestDto));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<PendingBikeDto> getAdminBikeById(@PathVariable("id") Integer id) {
+        PendingBikeDto pendingBikeDto = bikeServices.getAdminBikeById(id);
+        return ResponseEntity.ok(pendingBikeDto);
     }
 }

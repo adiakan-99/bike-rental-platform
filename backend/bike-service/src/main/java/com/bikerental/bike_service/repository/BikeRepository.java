@@ -25,12 +25,14 @@ public interface BikeRepository extends JpaRepository<Bike, Integer> {
             "b.bikeStatus = com.bikerental.bike_service.enums.BikeStatus.AVAILABLE AND " +
             "b.deletedAt IS NULL AND " +
             "(:partnerIds IS NULL OR b.partnerId IN :partnerIds) AND " +
+            "(:excludedBikeIds IS NULL OR b.bikeId NOT IN :excludedBikeIds) AND " + // 🔑 Exclude booked bikes
             "(:manufacturer IS NULL OR LOWER(b.manufacturer) = LOWER(:manufacturer)) AND " +
             "(:category IS NULL OR LOWER(d.bikeCategory) = LOWER(:category)) AND " +
             "(:minPrice IS NULL OR b.hourlyRate >= :minPrice) AND " +
             "(:maxPrice IS NULL OR b.hourlyRate <= :maxPrice)")
     Page<Bike> searchBikes(
             @Param("partnerIds") List<Integer> partnerIds,
+            @Param("excludedBikeIds") List<Integer> excludedBikeIds,
             @Param("manufacturer") String manufacturer,
             @Param("category") String category,
             @Param("minPrice") BigDecimal minPrice,

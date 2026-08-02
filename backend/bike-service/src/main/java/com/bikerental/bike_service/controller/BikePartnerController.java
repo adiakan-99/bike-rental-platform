@@ -33,6 +33,13 @@ public class BikePartnerController {
         return ResponseEntity.status(HttpStatus.CREATED).body(bikeServices.createBikeListing(userId, requestDto));
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<FleetListingDto> getBikeListing(@PathVariable Integer id) {
+        Integer userId = getAuthenticatedUserId();
+
+        return ResponseEntity.ok(bikeServices.getPartnerBikeById(userId, id));
+    }
+
     @PutMapping("/{id}")
     public ResponseEntity<FleetListingDto> updateBikeListing(@PathVariable Integer id, @Valid @RequestBody BikeListingRequestDto requestDto) {
         Integer userId = getAuthenticatedUserId();
