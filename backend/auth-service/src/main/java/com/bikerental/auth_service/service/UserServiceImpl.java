@@ -1,15 +1,19 @@
 package com.bikerental.auth_service.service;
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.bikerental.auth_service.dto.ChangePasswordRequest;
 import com.bikerental.auth_service.dto.ResetPasswordRequest;
+import com.bikerental.auth_service.dto.UpdateProfileRequestDTO;
+import com.bikerental.auth_service.dto.UpdateProfileResponseDTO;
 import com.bikerental.auth_service.dto.UserProfileResponse;
 import com.bikerental.auth_service.entity.PasswordResetToken;
 import com.bikerental.auth_service.entity.Role;
@@ -223,6 +227,33 @@ public class UserServiceImpl implements UserService {
 
 		userRepository.save(user);
 
+	}
+
+	@Override
+	public UpdateProfileResponseDTO updateProfile(Integer userId,
+			UpdateProfileRequestDTO request) {
+		// TODO Auto-generated method stub
+
+		User user = userRepository.findById(userId).orElseThrow(
+				() -> new UsernameNotFoundException("User not found"));
+
+		user.setFirstName(request.getFirstName());
+		user.setLastName(request.getLastName());
+		user.setPhoneNumber(request.getPhoneNumber());
+		user.setGender(request.getGender());
+
+		userRepository.save(user);
+
+		UpdateProfileResponseDTO response = new UpdateProfileResponseDTO();
+
+		response.setUserId(user.getUserId());
+		response.setEmail(user.getEmail());
+		response.setFirstName(user.getFirstName());
+		response.setLastName(user.getLastName());
+		response.setPhoneNumber(user.getPhoneNumber());
+		response.setGender(user.getGender());
+
+		return response;
 	}
 
 }

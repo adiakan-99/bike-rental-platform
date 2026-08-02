@@ -5,7 +5,7 @@ import lombok.Data;
 
 @Data
 @AllArgsConstructor
-public class FileUploadUrlDto {
+public class FileUploadUrlDTO {
 
     private String uploadUrl;
 

@@ -1,16 +1,16 @@
 package com.bikerental.customer_service.service;
 
-import com.bikerental.customer_service.dto.AdminKycResponseDto;
+import com.bikerental.customer_service.dto.AdminKycResponseDTO;
 
 import java.util.List;
 
 public interface AdminKycService {
 
-    List<AdminKycResponseDto> getPendingKycs();
+    List<AdminKycResponseDTO> getPendingKycs();
 
-    AdminKycResponseDto approveKyc(Integer userId,
+    AdminKycResponseDTO approveKyc(Integer userId,
                                    Integer adminId);
 
-    AdminKycResponseDto rejectKyc(Integer userId,
+    AdminKycResponseDTO rejectKyc(Integer userId,
                                   Integer adminId);
 }

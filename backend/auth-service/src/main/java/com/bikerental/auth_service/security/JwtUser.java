@@ -1,4 +1,4 @@
-package com.bikerental.customer_service.security;
+package com.bikerental.auth_service.security;
 
 import java.util.List;
 

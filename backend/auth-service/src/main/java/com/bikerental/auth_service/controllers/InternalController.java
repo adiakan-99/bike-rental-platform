@@ -1,5 +1,7 @@
 package com.bikerental.auth_service.controllers;
 
+import java.util.Map;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -13,9 +15,9 @@ import org.springframework.web.bind.annotation.RestController;
 import com.bikerental.auth_service.dto.AddRoleRequest;
 import com.bikerental.auth_service.dto.UpdateAccountStatusRequest;
 import com.bikerental.auth_service.dto.UserProfileResponse;
-import com.bikerental.auth_service.repository.UserRepository;
 import com.bikerental.auth_service.service.UserService;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 @RestController
@@ -28,43 +30,30 @@ public class InternalController {
 	@GetMapping("/{id}")
 	public ResponseEntity<UserProfileResponse> getUserById(
 			@PathVariable Integer id) {
-
 		return ResponseEntity.ok(userService.getUserById(id));
-
 	}
 
 	@PostMapping("/{id}/roles")
-	public ResponseEntity<String> addRoles(
-			@PathVariable(name = "id") Integer userId,
-			@RequestBody AddRoleRequest request) {
-
+	public ResponseEntity<?> addRoles(@PathVariable(name = "id") Integer userId,
+			@Valid @RequestBody AddRoleRequest request) {
 		userService.addRole(userId, request.getRole());
-
-		return ResponseEntity.ok("Role Assigned Successfully");
-
+		return ResponseEntity
+				.ok(Map.of("message", "Role assigned successfully"));
 	}
 
 	@DeleteMapping("/{id}/roles/{roleName}")
-	public ResponseEntity<String> removeRole(
-
-			@PathVariable Integer id,
-
+	public ResponseEntity<?> removeRole(@PathVariable Integer id,
 			@PathVariable String roleName) {
-
 		userService.removeRole(id, roleName);
-
-		return ResponseEntity.ok("Role removed successfully.");
-
+		return ResponseEntity
+				.ok(Map.of("message", "Role removed successfully"));
 	}
 
 	@PutMapping("/{id}/status")
-	public ResponseEntity<String> updateStatus(@PathVariable Integer id,
-			@RequestBody UpdateAccountStatusRequest request) {
-
+	public ResponseEntity<?> updateStatus(@PathVariable Integer id,
+			@Valid @RequestBody UpdateAccountStatusRequest request) {
 		userService.updateAccountStatus(id, request.getAccountStatus());
-
-		return ResponseEntity.ok(" Account status updated Successfully");
-
+		return ResponseEntity
+				.ok(Map.of("message", "Account status updated successfully"));
 	}
-
 }

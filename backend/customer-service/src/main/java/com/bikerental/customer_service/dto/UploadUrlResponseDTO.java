@@ -7,9 +7,9 @@ import lombok.Setter;
 @Getter
 @Setter
 @AllArgsConstructor
-public class FileUploadResponseDto {
+public class UploadUrlResponseDTO {
 
-    private String uploadUrl;
+	private String uploadUrl;
 
-    private String fileUrl;
+	private String fileUrl;
 }
