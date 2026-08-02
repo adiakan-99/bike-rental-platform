@@ -11,13 +11,11 @@ public class JwtUser {
 
     private Integer userId;
 
+    private String email;
+
     private String username;
 
     private String firstName;
 
-    private String role;
-	private Integer userId;
-	private String email;
-	private String firstName;
-	private List<String> roles;
+    private List<String> roles;
 }

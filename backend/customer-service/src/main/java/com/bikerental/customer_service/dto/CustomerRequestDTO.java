@@ -1,30 +1,34 @@
 package com.bikerental.customer_service.dto;
-
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
-import lombok.Getter;
-import lombok.Setter;
+import jakarta.validation.constraints.Size;
+import lombok.Data;
 
-@Getter
-@Setter
-public class CustomerRequestDto {
+@Data
+public class CustomerRequestDTO {
 
-    @NotBlank
-    private String addressLine1;
+	@NotBlank(message = "Address Line 1 is required")
+	@Size(max = 255, message = "Address Line 1 cannot exceed 255 characters")
+	private String addressLine1;
 
-    private String addressLine2;
+	@Size(max = 255, message = "Address Line 2 cannot exceed 255 characters")
+	private String addressLine2;
 
-    @NotBlank
-    private String city;
+	@NotBlank(message = "City is required")
+	@Size(max = 100, message = "City cannot exceed 100 characters")
+	private String city;
 
-    @NotBlank
-    private String state;
+	@NotBlank(message = "State is required")
+	@Size(max = 100, message = "State cannot exceed 100 characters")
+	private String state;
 
-    @Pattern(regexp = "\\d{6}", message = "Pincode must be 6 digits")
-    private String pincode;
+	@NotBlank(message = "Pincode is required")
+	@Pattern(regexp = "^[1-9][0-9]{5}$", message = "Invalid Indian pincode")
+	private String pincode;
 
-    @Pattern(regexp = "\\d{10}", message = "Emergency contact must be 10 digits")
-    private String emergencyContact;
+	@Pattern(regexp = "^$|^[6-9]\\d{9}$", message = "Emergency contact must be a valid 10-digit mobile number")
+	private String emergencyContact;
 
-    private String referralCode;
+	@Size(max = 50, message = "Referral code cannot exceed 50 characters")
+	private String referralCode;
 }

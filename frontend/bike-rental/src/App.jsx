@@ -5,6 +5,7 @@ import { COMPARE_MAX, DISPUTE_WINDOW_HOURS } from "./config";
 import { MONTHS, ROLE } from "./constants";
 import { CompareTray } from "./features/compare/components";
 import { accountStatusMessage, isSuspended, kycOk } from "./lib/access.js";
+import { getToken, clearAuth } from "./lib/authStorage.js";
 import {
   BIKES,
   MY_FLEET_SEED,
@@ -51,9 +52,11 @@ export default function App() {
       idNumber: "",
       emergency: sess.emergency || "",
       addr: sess.addr || "",
+      addr2: sess.addr2 || "",
       city: sess.city || "",
-      state: sess.state || "Maharashtra",
+      state: sess.state || "",
       pincode: sess.pincode || "",
+      referralCode: sess.referralCode || "",
       ...(isPartner
         ? {
             business: sess.name || "",
@@ -77,27 +80,57 @@ export default function App() {
   const currentProfile = session
     ? profiles[session.userId] || buildProfile(session)
     : null;
+  // Auth Service gender is an enum; the profile picker uses display labels.
+  const genderToEnum = (g) =>
+    ({
+      Male: "MALE",
+      Female: "FEMALE",
+      Other: "OTHER",
+      "Prefer not to say": "OTHER",
+    })[g];
   const saveProfile = async (data) => {
+    const headers = { Authorization: `Bearer ${getToken()}` };
+    const isCustomer = session.roles?.includes(ROLE.CUSTOMER);
+    // Each service call only fires when its required fields are actually filled, so a
+    // blank name doesn't 400 on /auth/me and a blank address doesn't 400 on /customers/me.
+    const hasName = data.first?.trim() && data.last?.trim();
+    const hasAddress =
+      data.addr?.trim() && data.city?.trim() && data.pincode?.trim();
+
+    if (!hasName && !(isCustomer && hasAddress)) {
+      notify("Enter your first and last name before saving.", "warn");
+      return;
+    }
     try {
-      // Customer Service owns address/emergency contact — this endpoint is real.
-      await axios.put(
-        `/api/v1/customers/${session.userId}`,
-        {
-          addressLine1: data.addr,
-          city: data.city,
-          state: data.state,
-          pincode: data.pincode,
-          emergencyContact: data.emergency,
-        },
-        {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-        },
-      );
-      // NOTE: name/phone/gender are Auth Service fields, but Auth Service currently only
-      // exposes GET /api/v1/auth/me — there is no PUT/PATCH to update them. Updating them
-      // locally so the UI doesn't silently discard the edit, but this does NOT persist to
-      // the backend yet. Flagged in the pending-endpoints list — needs a real endpoint
-      // (e.g. PUT /api/v1/auth/me) before this is actually durable across sessions.
+      // Auth Service — name / phone / gender (all roles). Requires a name.
+      if (hasName) {
+        await axios.put(
+          `/api/v1/auth/me`,
+          {
+            firstName: data.first,
+            lastName: data.last,
+            phoneNumber: data.phone,
+            gender: genderToEnum(data.gender),
+          },
+          { headers },
+        );
+      }
+      // Customer Service — address / emergency / referral (customers only). Requires address.
+      if (isCustomer && hasAddress) {
+        await axios.put(
+          `/api/v1/customers/me`,
+          {
+            addressLine1: data.addr,
+            addressLine2: data.addr2 || "",
+            city: data.city,
+            state: data.state,
+            pincode: data.pincode,
+            emergencyContact: data.emergency,
+            referralCode: data.referralCode || "",
+          },
+          { headers },
+        );
+      }
       setProfiles((prev) => ({ ...prev, [session.userId]: data }));
       const name = `${data.first} ${data.last}`.trim();
       setUsers((prev) =>
@@ -110,35 +143,41 @@ export default function App() {
       setSession((cur) => ({
         ...cur,
         name,
-        email: data.email,
         phone: data.phone,
+        gender: genderToEnum(data.gender) || cur.gender,
         addr: data.addr,
         city: data.city,
         state: data.state,
         pincode: data.pincode,
         emergency: data.emergency,
       }));
-      notify(
-        "Profile updated. (Name/phone/gender changes aren't saved to the server yet — see pending backend work.)",
-      );
+      notify("Profile updated.");
     } catch (error) {
-      notify(
-        error.response?.data?.message || "Could not update profile.",
-        "warn",
-      );
+      // Backend may return either { message } or a field-error map { field: "reason", ... }.
+      const d = error.response?.data;
+      const msg =
+        d && typeof d === "object" && !d.message
+          ? Object.values(d).join(" · ")
+          : d?.message || "Could not update profile.";
+      notify(msg, "warn");
     }
   };
-  const changePassword = (cur, next) => {
-    const u = users.find((x) => x.userId === session.userId);
-    if (!u) return { ok: false, error: "Account not found." };
-    if (u.password !== null && u.password !== cur)
-      return { ok: false, error: "Current password is incorrect." };
-    setUsers((prev) =>
-      prev.map((x) =>
-        x.userId === session.userId ? { ...x, password: next } : x,
-      ),
-    );
-    return { ok: true };
+  const changePassword = async (cur, next) => {
+    try {
+      // Auth Service — PUT /api/v1/auth/password { oldPassword, newPassword }
+      await axios.put(
+        `/api/v1/auth/password`,
+        { oldPassword: cur, newPassword: next },
+        { headers: { Authorization: `Bearer ${getToken()}` } },
+      );
+      return { ok: true };
+    } catch (error) {
+      return {
+        ok: false,
+        error:
+          error.response?.data?.message || "Current password is incorrect.",
+      };
+    }
   };
   const loggedIn = !!session;
   const [pendingBook, setPendingBook] = useState(false);
@@ -627,6 +666,7 @@ export default function App() {
         onRentals={() => go("rentals")}
         onWishlist={() => go("wishlist")}
         onLogout={() => {
+          clearAuth();
           setSession(null);
           goHome();
         }}

@@ -1,60 +1,66 @@
-package com.bikerental.customer_service.service;
+4package com.bikerental.customer_service.security;
+
+import java.util.Date;
+import java.util.List;
+
+import javax.crypto.SecretKey;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
-
-import javax.crypto.SecretKey;
-import java.util.Date;
 
 @Service
 public class JwtService {
 
-    @Value("${jwt.secret}")
-    private String secretKey;
+	@Value("${jwt.secret}")
+	private String secretKey;
 
-    private SecretKey getSigningKey() {
-        return Keys.hmacShaKeyFor(secretKey.getBytes());
-    }
+	private SecretKey getSigningKey() {
 
-    public Claims extractClaims(String token) {
+		return Keys.hmacShaKeyFor(secretKey.getBytes());
+	}
 
-        return Jwts.parser()
-                .verifyWith(getSigningKey())
-                .build()
-                .parseSignedClaims(token)
-                .getPayload();
-    }
+	public Claims extractClaims(String token) {
 
-    public Integer extractUserId(String token) {
-        return extractClaims(token).get("userId", Integer.class);
-    }
+		return Jwts.parser().verifyWith(getSigningKey()).build()
+				.parseSignedClaims(token).getPayload();
+	}
 
-    public String extractUsername(String token) {
-        return extractClaims(token).getSubject();
-    }
+	public Integer extractUserId(String token) {
 
-    public String extractFirstName(String token) {
-        return extractClaims(token).get("firstName", String.class);
-    }
+		return extractClaims(token).get("userId", Integer.class);
+	}
 
-    public String extractRole(String token) {
-        return extractClaims(token).get("roles", String.class);
-    }
+	public String extractUsername(String token) {
 
-    public boolean isTokenValid(String token) {
+		return extractClaims(token).getSubject();
+	}
 
-        try {
+	public String extractFirstName(String token) {
 
-            Date expiry = extractClaims(token).getExpiration();
+		return extractClaims(token).get("firstName", String.class);
+	}
 
-            return expiry.after(new Date());
+	@SuppressWarnings("unchecked")
+	public List<String> extractRoles(String token) {
 
-        } catch (Exception e) {
+		return extractClaims(token).get("roles", List.class);
+	}
 
-            return false;
-        }
-    }
+	public boolean isTokenValid(String token) {
+
+		try {
+
+			Date expiry = extractClaims(token).getExpiration();
+
+			return expiry != null && expiry.after(new Date());
+
+		} catch (Exception e) {
+
+			return false;
+		}
+	}
 }

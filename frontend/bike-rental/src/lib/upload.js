@@ -33,6 +33,8 @@ export async function uploadDocument({ file, documentType, endpoint }) {
   );
   const { uploadUrl, fileUrl } = data;
   // 2) PUT the raw bytes straight to MinIO — pre-signed URL carries its own auth
-  await axios.put(uploadUrl, file, { headers: { "Content-Type": file.type } });
+  await axios.put(uploadUrl, file, {
+    headers: { "Content-Type": file.type },
+  });
   return fileUrl;
 }

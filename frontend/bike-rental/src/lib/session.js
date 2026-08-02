@@ -1,7 +1,6 @@
-// Single place that turns a raw /auth/me response into the session shape the rest of
-// the frontend expects. Backend sends firstName/lastName/phoneNumber separately;
-// buildProfile (App.jsx), Navbar, etc. all read a combined `name` + `phone`. Normalizing
-// here — once — avoids re-fixing this mismatch in every place that calls /auth/me.
+// Turns a raw /auth/me response into the session shape the rest of the app expects.
+// Auth Service sends firstName/lastName/phoneNumber separately; the UI reads combined
+// `name` + `phone`. Normalizing here — once — avoids re-fixing this in every caller.
 export const normalizeSession = (me, token) => {
   const roles = Array.isArray(me.roles) ? me.roles : [me.roles].filter(Boolean);
   return {
@@ -13,17 +12,20 @@ export const normalizeSession = (me, token) => {
   };
 };
 
-// A Customer Service record only exists once the rider is KYC-verified. Before that
-// (PENDING / SUBMITTED / REJECTED / no record) there is genuinely nothing to fetch,
-// so calling /customers/me would just 4xx on every login. We treat "verified" as the
-// gate: anything else means "skip the call, prefill nothing".
-export const hasCustomerRecord = (me) => me?.kycStatus === "VERIFIED";
+// Only a CUSTOMER has a Customer Service row (customer profile + KYC). Admin/partner-only
+// accounts don't, so we gate the customer-service calls on the role to avoid firing
+// requests that 404. Paths are relative so they go through the Vite proxy / API gateway.
+export const hasCustomerRecord = (me) => {
+  const roles = Array.isArray(me?.roles)
+    ? me.roles
+    : [me?.roles].filter(Boolean);
+  return roles.includes("CUSTOMER");
+};
 
-// Customer Service owns the address/emergency-contact/referral fields — separate service,
-// separate call. Pass the `me` object (from /auth/me) so we can skip the request entirely
-// for accounts that don't have a customer record yet, instead of firing one we know fails.
+// GET /api/v1/customers/me  ->  CustomerResponseDTO (address / emergency / referral).
+// NOTE: this DTO does NOT carry kycStatus — that comes from the KYC endpoint below.
 export const fetchCustomerProfile = async (token, me) => {
-  if (!hasCustomerRecord(me)) return null; // not verified yet → no record to fetch, don't call
+  if (!hasCustomerRecord(me)) return null;
   try {
     const res = await fetch(`/api/v1/customers/me`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -35,15 +37,40 @@ export const fetchCustomerProfile = async (token, me) => {
   }
 };
 
-// Maps the Customer Service response shape onto the field names buildProfile()/ProfilePage
-// already use (addr/emergency, not addressLine1/emergencyContact).
+// GET the rider's KYC record -> CustomerKycResponseDTO (kycStatus + submitted fields).
+// A 404 means "no KYC row yet" (never submitted) — treated as null, not an error.
+// PATH WARNING: the deployed route is the doubled `/me/kyc/me/kyc` shown in Swagger,
+// which is almost certainly a controller-mapping bug. If/when the backend fixes it to
+// `/api/v1/customers/me/kyc`, update KYC_GET_PATH here to match.
+export const KYC_GET_PATH = "/api/v1/customers/me/kyc/me/kyc";
+export const fetchCustomerKyc = async (token, me) => {
+  if (!hasCustomerRecord(me)) return null;
+  try {
+    const res = await fetch(KYC_GET_PATH, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+};
+
+// Maps CustomerResponseDTO onto the field names the app already uses (addr/emergency).
 export const normalizeCustomerProfile = (c) =>
   c
     ? {
         addr: c.addressLine1 || "",
+        addr2: c.addressLine2 || "",
         city: c.city || "",
         state: c.state || "",
         pincode: c.pincode || "",
         emergency: c.emergencyContact || "",
+        referralCode: c.referralCode || "",
       }
     : {};
+
+// Merges the KYC record's status into the session. kycStatus is the ONLY authoritative
+// source for the rider's verification state (Customer Service, not /auth/me).
+export const normalizeKyc = (kyc) =>
+  kyc?.kycStatus ? { kycStatus: kyc.kycStatus } : {};

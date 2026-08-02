@@ -47,6 +47,7 @@ public class SecurityConfig {
 						.requestMatchers("/api/v1/internal/users/**")
 						.authenticated()
 						.requestMatchers("/api/v1/auth/password")
+						.authenticated().requestMatchers("/api/v1/auth/me")
 						.authenticated()
 
 						.anyRequest().authenticated())

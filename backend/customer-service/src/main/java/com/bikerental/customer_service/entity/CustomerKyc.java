@@ -1,70 +1,92 @@
 package com.bikerental.customer_service.entity;
 
-import jakarta.persistence.*;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
-import lombok.Getter;
-import lombok.Setter;
-import org.hibernate.annotations.ColumnDefault;
-
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+
+import com.bikerental.customer_service.enums.IdType;
+import com.bikerental.customer_service.enums.KycStatus;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.MapsId;
+import jakarta.persistence.OneToOne;
+import jakarta.persistence.Table;
+import jakarta.validation.constraints.Future;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Past;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
+import lombok.Getter;
+import lombok.Setter;
+
+@Entity
+@Table(name = "customer_kyc")
 @Getter
 @Setter
-@Entity
-@Table(name = "user_kyc")
 public class CustomerKyc {
-	@Id
-	@Column(name = "user_id", nullable = false)
-	private Integer userId;
 
-	@NotNull
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	@Column(name = "kyc_id")
+	private Integer kycId;
+
+	@OneToOne(fetch = FetchType.LAZY)
+	@MapsId
+	@JoinColumn(name = "customer_id", nullable = false, unique = true)
+	private Customer customer;
+
+	@NotNull(message = "Date of birth is required")
+	@Past(message = "Date of birth must be in the past")
 	@Column(name = "date_of_birth", nullable = false)
 	private LocalDate dateOfBirth;
 
-	@Size(max = 20)
-	@NotNull
-	@ColumnDefault("'AADHAAR'")
-	@Column(name = "id_type", nullable = false, length = 20)
-	private String idType;
+	@Enumerated(EnumType.STRING)
+	@NotNull(message = "ID type is required")
+	private IdType idType;
 
-	@Size(max = 50)
-	@NotNull
-	@Column(name = "id_number", nullable = false, length = 50)
+	@NotBlank(message = "ID number is required")
+	@Size(max = 50, message = "ID number cannot exceed 50 characters")
 	private String idNumber;
 
-	@Size(max = 500)
-	@NotNull
-	@Column(name = "id_upload_url", nullable = false, length = 500)
+	@NotBlank(message = "Upload URL is required")
+	@Size(max = 500, message = "URL cannot exceed 500 characters")
 	private String idUploadUrl;
 
-	@Size(max = 50)
-	@Column(name = "driving_license_number", length = 50)
+	@Size(max = 50, message = "Driving license number cannot exceed 50 characters")
 	private String drivingLicenseNumber;
 
-	@Size(max = 500)
-	@Column(name = "driving_licence_url", length = 500)
-	private String drivingLicenceUrl;
+	@Size(max = 500, message = "Driving license URL cannot exceed 500 characters")
+	private String drivingLicenseUrl;
 
-	@Column(name = "license_valid_to")
+	@Future(message = "License expiration date must be in the future")
 	private LocalDate licenseValidTo;
 
-	@Size(max = 20)
-	@NotNull
-	@ColumnDefault("'PENDING'")
+	@Enumerated(EnumType.STRING)
 	@Column(name = "kyc_status", nullable = false, length = 20)
-	private String kycStatus;
+	private KycStatus kycStatus = KycStatus.PENDING;
+
+	@Column(name = "verified_by")
+	private Integer verifiedBy;
 
 	@Column(name = "verified_at")
 	private OffsetDateTime verifiedAt;
 
-	@NotNull
-	@ColumnDefault("now()")
-	@Column(name = "created_at", nullable = false)
+	@CreationTimestamp
+	@Column(name = "created_at", nullable = false, updatable = false)
 	private OffsetDateTime createdAt;
 
+	@UpdateTimestamp
 	@Column(name = "updated_at")
 	private OffsetDateTime updatedAt;
-
 }

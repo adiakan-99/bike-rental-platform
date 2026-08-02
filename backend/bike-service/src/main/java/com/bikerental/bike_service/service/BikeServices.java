@@ -30,7 +30,7 @@ public interface BikeServices {
 
     BikeAdminActionResponseDto reviewBikeListing(Integer userId, Integer bikeId, BikeAdminReviewRequestDto requestDto);
 
-    Page<BikeCardDto> browseBike(String city, String manufacturer, String category, BigDecimal minPrice, BigDecimal maxPrice, Pageable pageable);
+    Page<BikeCardDto> browseBike(String city, LocalDateTime startDate, LocalDateTime endDate, String manufacturer, String category, BigDecimal minPrice, BigDecimal maxPrice, Pageable pageable);
 
     BikeDetailDto getBikeDetailById(Integer bikeId);
 
@@ -39,4 +39,8 @@ public interface BikeServices {
     List<BikeDetailDto> compareBikes(List<Integer> ids);
 
     InternalBikeDetailsDto getInternalBikeDetailById(Integer bikeId);
+
+    FleetListingDto getPartnerBikeById(Integer userId, Integer bikeId);
+
+    PendingBikeDto getAdminBikeById(Integer bikeId);
 }

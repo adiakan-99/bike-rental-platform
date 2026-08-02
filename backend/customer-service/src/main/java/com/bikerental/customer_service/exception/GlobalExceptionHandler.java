@@ -1,6 +1,6 @@
 package com.bikerental.customer_service.exception;
 
-import com.bikerental.customer_service.dto.ErrorResponseDto;
+import com.bikerental.customer_service.dto.ErrorResponseDTO;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -16,10 +16,10 @@ import java.util.Map;
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(CustomerAlreadyExistsException.class)
-    public ResponseEntity<ErrorResponseDto> handleCustomerAlreadyExists(
+    public ResponseEntity<ErrorResponseDTO> handleCustomerAlreadyExists(
             CustomerAlreadyExistsException ex) {
 
-        ErrorResponseDto error = new ErrorResponseDto(
+        ErrorResponseDTO error = new ErrorResponseDTO(
                 OffsetDateTime.now(),
                 HttpStatus.CONFLICT.value(),
                 HttpStatus.CONFLICT.getReasonPhrase(),
@@ -30,10 +30,10 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(CustomerNotFoundException.class)
-    public ResponseEntity<ErrorResponseDto> handleCustomerNotFound(
+    public ResponseEntity<ErrorResponseDTO> handleCustomerNotFound(
             CustomerNotFoundException ex) {
 
-        ErrorResponseDto error = new ErrorResponseDto(
+        ErrorResponseDTO error = new ErrorResponseDTO(
                 OffsetDateTime.now(),
                 HttpStatus.NOT_FOUND.value(),
                 HttpStatus.NOT_FOUND.getReasonPhrase(),
@@ -44,10 +44,10 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(UserNotFoundException.class)
-    public ResponseEntity<ErrorResponseDto> handleUserNotFound(
+    public ResponseEntity<ErrorResponseDTO> handleUserNotFound(
             UserNotFoundException ex) {
 
-        ErrorResponseDto error = new ErrorResponseDto(
+        ErrorResponseDTO error = new ErrorResponseDTO(
                 OffsetDateTime.now(),
                 HttpStatus.NOT_FOUND.value(),
                 HttpStatus.NOT_FOUND.getReasonPhrase(),
@@ -58,10 +58,10 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(UserKycAlreadyExistsException.class)
-    public ResponseEntity<ErrorResponseDto> handleUserKycAlreadyExists(
+    public ResponseEntity<ErrorResponseDTO> handleUserKycAlreadyExists(
             UserKycAlreadyExistsException ex) {
 
-        ErrorResponseDto error = new ErrorResponseDto(
+        ErrorResponseDTO error = new ErrorResponseDTO(
                 OffsetDateTime.now(),
                 HttpStatus.CONFLICT.value(),
                 HttpStatus.CONFLICT.getReasonPhrase(),
@@ -86,10 +86,10 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(UserKycNotFoundException.class)
-    public ResponseEntity<ErrorResponseDto> handleUserKycNotFound(
+    public ResponseEntity<ErrorResponseDTO> handleUserKycNotFound(
             UserKycNotFoundException ex) {
 
-        ErrorResponseDto error = new ErrorResponseDto(
+        ErrorResponseDTO error = new ErrorResponseDTO(
                 OffsetDateTime.now(),
                 HttpStatus.NOT_FOUND.value(),
                 HttpStatus.NOT_FOUND.getReasonPhrase(),
