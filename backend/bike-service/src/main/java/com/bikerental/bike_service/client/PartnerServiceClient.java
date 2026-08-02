@@ -14,6 +14,6 @@ public interface PartnerServiceClient {
     @GetMapping("/api/v1/internal/partners/{id}/status")
     PartnerStatusDto getPartnerStatus(@PathVariable("id") Integer id);
 
-    @GetMapping("/api/v1/partners/internal/ids")
+    @GetMapping("/api/v1/internal/partners/ids")
     List<Integer> getPartnerIdsByCity(@RequestParam("city") String city);
 }
