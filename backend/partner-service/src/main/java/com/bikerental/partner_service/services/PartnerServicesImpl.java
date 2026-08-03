@@ -37,10 +37,10 @@ public class PartnerServicesImpl implements PartnerServices {
     private final AuthServiceClient authServiceClient;
 
     public PartnerServicesImpl(PartnerRepository partnerRepository,
-                               PartnerPayoutAccountRepository accountRepository,
-                               PartnerDocumentRepository documentRepository,
-                               StorageServices storageServices,
-                               AuthServiceClient authServiceClient) {
+            PartnerPayoutAccountRepository accountRepository,
+            PartnerDocumentRepository documentRepository,
+            StorageServices storageServices,
+            AuthServiceClient authServiceClient) {
         this.partnerRepository = partnerRepository;
         this.payoutAccountRepository = accountRepository;
         this.documentRepository = documentRepository;
@@ -50,7 +50,8 @@ public class PartnerServicesImpl implements PartnerServices {
 
     @Override
     @Transactional
-    public PartnerCreationResponseDto onboardPartner(PartnerCreationRequestDto partnerCreationRequestDto, Integer userId) {
+    public PartnerCreationResponseDto onboardPartner(PartnerCreationRequestDto partnerCreationRequestDto,
+            Integer userId) {
 
         if (partnerRepository.existsByUserId(userId)) {
             throw new DuplicateResourceException("A partner already exists with userId " + userId);
@@ -76,8 +77,8 @@ public class PartnerServicesImpl implements PartnerServices {
 
         payoutAccountRepository.save(objPartnerPayoutAccount);
 
-        if (partnerCreationRequestDto.getSellerType().equals("COMMERCIAL_DEALER") && partnerCreationRequestDto.getDocuments() != null) {
-            List<PartnerDocument>  partnerDocuments = new ArrayList<>();
+        if (partnerCreationRequestDto.getDocuments() != null && !partnerCreationRequestDto.getDocuments().isEmpty()) {
+            List<PartnerDocument> partnerDocuments = new ArrayList<>();
 
             for (PartnerDocumentUploadDto partnerDocumentUploadDto : partnerCreationRequestDto.getDocuments()) {
                 PartnerDocument partnerDocument = new PartnerDocument();
@@ -103,12 +104,13 @@ public class PartnerServicesImpl implements PartnerServices {
     }
 
     @Override
-    public PartnerProfileResponseDto getPartnerById(Integer partnerId, Integer authenticatedUserId, List<String> roles) {
+    public PartnerProfileResponseDto getPartnerById(Integer partnerId, Integer authenticatedUserId,
+            List<String> roles) {
 
         Partner partner = partnerRepository.findById(partnerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Partner not found with ID: " + partnerId));
 
-        boolean isAdmin = roles.contains("ADMIN");
+        boolean isAdmin = roles.contains("ROLE_ADMIN");
         boolean isOwner = partner.getUserId().equals(authenticatedUserId);
 
         if (!isAdmin && !isOwner) {
@@ -116,7 +118,8 @@ public class PartnerServicesImpl implements PartnerServices {
         }
 
         PartnerPayoutAccount payout = payoutAccountRepository.findByPartnerId(partnerId)
-                .orElseThrow(() -> new ResourceNotFoundException("Payout details missing for partner ID: " + partnerId));
+                .orElseThrow(
+                        () -> new ResourceNotFoundException("Payout details missing for partner ID: " + partnerId));
 
         // 4. Map Entity to DTO (Manual mapping shown here)
         PartnerProfileResponseDto response = new PartnerProfileResponseDto();
@@ -176,7 +179,8 @@ public class PartnerServicesImpl implements PartnerServices {
         Set<String> emptyNames = new HashSet<String>();
         for (java.beans.PropertyDescriptor pd : pds) {
             Object srcValue = src.getPropertyValue(pd.getName());
-            if (srcValue == null) emptyNames.add(pd.getName());
+            if (srcValue == null)
+                emptyNames.add(pd.getName());
         }
         emptyNames.add("panNumber");
         emptyNames.add("gstNumber");
@@ -187,10 +191,12 @@ public class PartnerServicesImpl implements PartnerServices {
     }
 
     @Override
-    public PartnerProfileResponseDto updateMyProfile(Integer authenticatedUserId, PartnerUpdateRequestDto requestDto, List<String> roles) {
-        Partner objPartner = partnerRepository.findByUserId(authenticatedUserId).orElseThrow(() -> new AccessDeniedException("Access denied"));
+    public PartnerProfileResponseDto updateMyProfile(Integer authenticatedUserId, PartnerUpdateRequestDto requestDto,
+            List<String> roles) {
+        Partner objPartner = partnerRepository.findByUserId(authenticatedUserId)
+                .orElseThrow(() -> new AccessDeniedException("Access denied"));
 
-        BeanUtils.copyProperties(objPartner, requestDto, getNullPropertyNames(requestDto));
+        BeanUtils.copyProperties(requestDto, objPartner, getNullPropertyNames(requestDto));
 
         boolean critcalKycChanged = false;
 
@@ -225,10 +231,13 @@ public class PartnerServicesImpl implements PartnerServices {
 
     @Override
     @Transactional
-    public PartnerDocumentDto updatePartnerDocument(Integer authenticatedUserId, PartnerDocumentUpdateRequestDto requestDto) {
-        Partner objPartner = partnerRepository.findByUserId(authenticatedUserId).orElseThrow(() -> new AccessDeniedException("Access denied"));
+    public PartnerDocumentDto updatePartnerDocument(Integer authenticatedUserId,
+            PartnerDocumentUpdateRequestDto requestDto) {
+        Partner objPartner = partnerRepository.findByUserId(authenticatedUserId)
+                .orElseThrow(() -> new AccessDeniedException("Access denied"));
 
-        PartnerDocument document = documentRepository.findByPartnerIdAndDocType(objPartner.getId(), requestDto.getDocType())
+        PartnerDocument document = documentRepository
+                .findByPartnerIdAndDocType(objPartner.getId(), requestDto.getDocType())
                 .orElseThrow(() -> new ResourceNotFoundException("Document not found"));
 
         document.setFileUrl(requestDto.getFileUrl());
@@ -253,8 +262,10 @@ public class PartnerServicesImpl implements PartnerServices {
 
     @Override
     @Transactional
-    public PartnerPayoutResponseDto upsertPartnerPayout(Integer authenticatedUserId, PartnerPayoutRequestDto requestDto) {
-        Partner objPartner = partnerRepository.findByUserId(authenticatedUserId).orElseThrow(() -> new ResourceNotFoundException("Partner not found"));
+    public PartnerPayoutResponseDto upsertPartnerPayout(Integer authenticatedUserId,
+            PartnerPayoutRequestDto requestDto) {
+        Partner objPartner = partnerRepository.findByUserId(authenticatedUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("Partner not found"));
 
         PartnerPayoutAccount payoutAccount = payoutAccountRepository.findByPartnerId(objPartner.getId())
                 .orElse(new PartnerPayoutAccount());
@@ -278,7 +289,8 @@ public class PartnerServicesImpl implements PartnerServices {
     }
 
     @Override
-    public List<PartnerDocumentDto> getPartnerDocuments(Integer partnerId, Integer authenticatedUserId, List<String> roles) {
+    public List<PartnerDocumentDto> getPartnerDocuments(Integer partnerId, Integer authenticatedUserId,
+            List<String> roles) {
         // 1. Fetch Partner to verify existence AND ownership
         Partner partner = partnerRepository.findById(partnerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Partner not found with ID: " + partnerId));
