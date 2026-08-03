@@ -42,7 +42,7 @@ export const fetchCustomerProfile = async (token, me) => {
 // PATH WARNING: the deployed route is the doubled `/me/kyc/me/kyc` shown in Swagger,
 // which is almost certainly a controller-mapping bug. If/when the backend fixes it to
 // `/api/v1/customers/me/kyc`, update KYC_GET_PATH here to match.
-export const KYC_GET_PATH = "/api/v1/customers/me/kyc/me/kyc";
+export const KYC_GET_PATH = "/api/v1/customers/me/kyc";
 export const fetchCustomerKyc = async (token, me) => {
   if (!hasCustomerRecord(me)) return null;
   try {
