@@ -18,6 +18,8 @@ RUN dotnet publish "booking-service.csproj" -c Release -o /app/publish /p:UseApp
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
 WORKDIR /app
 
+ENV ASPNETCORE_HTTP_PORTS=8085
+
 # Expose HTTP port 
 EXPOSE 8085
 
