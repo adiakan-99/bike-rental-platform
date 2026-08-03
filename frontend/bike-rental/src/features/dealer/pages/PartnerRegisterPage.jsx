@@ -1,7 +1,8 @@
 // AUTO-EXTRACTED (verbatim) from BikeRentalSite_optimisedUI.jsx — do not edit logic.
 import { useState } from "react";
 import axios from "axios";
-import { getToken } from "../../../lib/Authstorage.js";
+import { getToken, setAuth } from "../../../lib/Authstorage.js";
+import { Turnstile } from "@marsidev/react-turnstile";
 import {
   ArrowRight,
   Award,
@@ -32,7 +33,8 @@ import { RX, pwScore } from "../../../lib/validation.js";
 import { Field } from "../../../ui";
 import { DocSlot } from "../components";
 
-const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || "";
+const baseUrl = "";
 
 // Mirrors StorageServicesImpl's ALLOWED_CONTENT_TYPES on the backend so a bad
 // file is rejected client-side before we even ask for an upload URL.
@@ -90,6 +92,9 @@ export function PartnerRegisterPage({ onSubmit, onLogin, onHome, session }) {
     [kyc, setKyc] = useState(false);
   const [showPw, setShowPw] = useState(false);
   const [done, setDone] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState("");
+  const [authErr, setAuthErr] = useState("");
+  const [busy, setBusy] = useState(false);
   const set = (k) => (e) => setV((p) => ({ ...p, [k]: e.target.value }));
   // Digits-only (phone/pincode/account) and uppercase-alphanumeric (PAN/GSTIN/IFSC) setters,
   // each hard-capped so a user can't over-type the field.
@@ -146,8 +151,14 @@ export function PartnerRegisterPage({ onSubmit, onLogin, onHome, session }) {
       );
       const { uploadUrl, fileUrl } = data;
       // Pre-signed URL carries its own auth in the query string — no bearer
-      // header here, and this request goes straight to MinIO, not baseUrl.
-      await axios.put(uploadUrl, file, {
+      // header here. But the URL MinIO returns points at http://minio:9000,
+      // which only resolves inside the Docker network. Rewrite it to /storage
+      // so the PUT goes through the Vite proxy → api-gateway → minio:9000.
+      const proxyUploadUrl = uploadUrl.replace(
+        /^http:\/\/minio:9000/,
+        "/storage",
+      );
+      await axios.put(proxyUploadUrl, file, {
         headers: { "Content-Type": file.type },
       });
       setDocs((p) => ({
@@ -323,7 +334,7 @@ export function PartnerRegisterPage({ onSubmit, onLogin, onHome, session }) {
   const stepValid = (i) =>
     stepFields[i].every((f) => !e[f]) && (i !== 3 || (agree && kyc));
   const err = (k) => t[k] && e[k];
-  const next = () => {
+  const next = async () => {
     if (!stepValid(step)) {
       setT((p) => ({
         ...p,
@@ -331,6 +342,44 @@ export function PartnerRegisterPage({ onSubmit, onLogin, onHome, session }) {
       }));
       return;
     }
+
+    // Leaving step 0 as a brand-new user: create the account now so the rest of
+    // the form has a JWT. Document upload and the profile POST both require one.
+    if (step === 0 && !linked) {
+      if (!captchaToken) {
+        setAuthErr("Please complete the CAPTCHA.");
+        return;
+      }
+      setAuthErr("");
+      setBusy(true);
+      try {
+        await axios.post("/api/v1/auth/register", {
+          firstName: v.first.trim(),
+          lastName: v.last.trim(),
+          email: v.email.trim(),
+          phoneNumber: v.phone.trim(),
+          password: v.pw,
+          captchaToken,
+        });
+        const { data } = await axios.post("/api/v1/auth/login", {
+          email: v.email.trim(),
+          password: v.pw,
+        });
+        setAuth({ token: data.token }, false);
+      } catch (err) {
+        const status = err.response?.status;
+        setAuthErr(
+          status === 409
+            ? "An account with this email already exists. Log in instead."
+            : err.response?.data?.message || "Could not create your account.",
+        );
+        setCaptchaToken("");
+        return;
+      } finally {
+        setBusy(false);
+      }
+    }
+
     setStep((x) => Math.min(3, x + 1));
     window.scrollTo({ top: 0 });
   };
@@ -367,6 +416,21 @@ export function PartnerRegisterPage({ onSubmit, onLogin, onHome, session }) {
       since: v.yearEst || String(new Date().getFullYear()),
       fleet: 0,
       complaints: [],
+      state: v.state,
+      pincode: v.pincode.trim(),
+      altEmail: v.altEmail.trim(),
+      altPhone: v.altPhone.trim(),
+      udyam: v.udyam.trim(),
+      rmcNo: v.rmcNo.trim(),
+      rmcAuthority: v.rmcAuthority.trim(),
+      rmcFrom: v.rmcFrom,
+      rmcTo: v.rmcTo,
+      bankName: v.bankName.trim(),
+      accHolder: v.accHolder.trim(),
+      accNo: v.accNo.trim(),
+      ifsc: v.ifsc.trim().toUpperCase(),
+      addr1: v.addr1.trim(),
+      pan: v.pan.trim().toUpperCase(),
       // documentType -> permanent fileUrl, exactly what the partner profile
       // API's document URL fields expect (never the raw file).
       documents: docList.reduce((acc, d) => {
@@ -693,6 +757,22 @@ export function PartnerRegisterPage({ onSubmit, onLogin, onHome, session }) {
                   />
                 </Field>
               </div>
+
+              {!linked && (
+                <div className="mt-5">
+                  <Turnstile
+                    siteKey={TURNSTILE_SITE_KEY}
+                    onSuccess={(tok) => setCaptchaToken(tok)}
+                    onError={() => setCaptchaToken("")}
+                    onExpire={() => setCaptchaToken("")}
+                  />
+                  {authErr && (
+                    <p className="mt-2 text-sm" style={{ color: "#dc2626" }}>
+                      {authErr}
+                    </p>
+                  )}
+                </div>
+              )}
             </>
           )}
 
@@ -1228,9 +1308,16 @@ export function PartnerRegisterPage({ onSubmit, onLogin, onHome, session }) {
             {step < 3 ? (
               <button
                 onClick={next}
+                disabled={busy}
                 className="br-btn br-display flex flex-1 items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold"
               >
-                Continue <ArrowRight size={16} />
+                {busy ? (
+                  "Creating account…"
+                ) : (
+                  <>
+                    Continue <ArrowRight size={16} />
+                  </>
+                )}
               </button>
             ) : (
               <button

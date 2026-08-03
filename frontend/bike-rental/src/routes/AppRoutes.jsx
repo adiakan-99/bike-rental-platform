@@ -166,6 +166,7 @@ export function AppRoutes({ ctx }) {
           onResetPassword={resetPassword}
         />
       )}
+
       {page === "profile" &&
         (session ? (
           <ProfilePage

@@ -348,8 +348,57 @@ export default function App() {
 
   const [pBikes, setPBikes] = useState(PENDING_BIKES_SEED);
   // supply side: partner registrations and bike listings feed the admin approval queues
-  const submitPartner = (form) =>
-    setPDealers((prev) => [{ ...form, id: Date.now() }, ...prev]);
+  const submitPartner = async (form) => {
+    const nz = (s) => (s && String(s).trim() ? String(s).trim() : null);
+    const isBiz = form.ownerType === "Business";
+
+    const payload = {
+      sellerType: isBiz ? "COMMERCIAL_DEALER" : "INDIVIDUAL",
+      ownerName: nz(form.name),
+      alternateEmail: nz(form.altEmail),
+      alternatePhoneNumber: nz(form.altPhone),
+      panNumber: nz(form.pan),
+      contactPhone: nz(form.phone),
+      addressLine1: nz(form.addr1),
+      addressLine2: nz(form.area),
+      city: nz(form.city),
+      state: nz(form.state),
+      pincode: nz(form.pincode),
+      businessName: isBiz ? nz(form.business) : null,
+      tradeName: isBiz ? nz(form.tradeName) : null,
+      gstNumber: isBiz ? nz(form.gstin) : null,
+      businessType: isBiz ? nz(form.type) : null,
+      yearOfEstablishment: nz(form.since),
+      udyamNumber: isBiz ? nz(form.udyam) : null,
+      signatoryName: isBiz ? nz(form.name) : null,
+      signatoryDesignation: isBiz ? nz(form.signatoryDesignation) : null,
+      licenseNumber: nz(form.rmcNo),
+      issuingAuthority: nz(form.rmcAuthority),
+      licenseValidFrom: nz(form.rmcFrom),
+      licenseValidTo: nz(form.rmcTo),
+      payoutAccount: {
+        accountHolder: nz(form.accHolder),
+        accountNumber: nz(form.accNo),
+        ifsc: nz(form.ifsc),
+        bankName: nz(form.bankName),
+      },
+      documents: Object.entries(form.documents || {}).map(
+        ([docType, fileUrl]) => ({
+          docType,
+          fileUrl,
+        }),
+      ),
+    };
+
+    try {
+      const { data } = await partnerApi.onboardPartner(payload);
+      setPDealers((prev) => [{ ...form, id: data.partnerId }, ...prev]);
+      notify("Partner application submitted", "success");
+    } catch (err) {
+      console.error("Partner onboarding failed:", err.response?.data || err);
+      notify(err.response?.data?.message || "Submission failed", "error");
+    }
+  };
   const [myListings, setMyListings] = useState(MY_FLEET_SEED);
   // Editing an approved listing sends it back through review — same as a new submission.
   const editListing = (id, patch) =>
