@@ -31,6 +31,7 @@ public interface BikeRepository extends JpaRepository<Bike, Integer> {
             "(:maxPrice IS NULL OR b.hourlyRate <= :maxPrice)")
     Page<Bike> searchBikes(
             @Param("partnerIds") List<Integer> partnerIds,
+            @Param("excludedBikeIds") List<Integer> excludedBikeIds,
             @Param("manufacturer") String manufacturer,
             @Param("category") String category,
             @Param("minPrice") BigDecimal minPrice,

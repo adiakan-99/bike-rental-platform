@@ -15,8 +15,11 @@ import { RX } from "../../../lib/validation.js";
 import {
   normalizeSession,
   fetchCustomerProfile,
+  fetchCustomerKyc,
   normalizeCustomerProfile,
+  normalizeKyc,
 } from "../../../lib/session.js";
+import { setAuth } from "../../../lib/authStorage.js";
 import { DEMO_LOGINS, DEMO_USERS } from "../../../mock";
 import { Field } from "../../../ui";
 import { ForgotPasswordCard, SocialButtons } from "../components";
@@ -36,6 +39,7 @@ export function LoginPage({
   const [authErr, setAuthErr] = useState("");
   const [busy, setBusy] = useState(false);
   const [view, setView] = useState("login"); // login | forgot
+  const [remember, setRemember] = useState(true); // Remember me: localStorage vs sessionStorage
   const [demoOpen, setDemoOpen] = useState(false);
   const fillDemo = (demoEmail) => {
     setEmail(demoEmail);
@@ -68,19 +72,25 @@ export function LoginPage({
         password: pw,
       });
       const token = loginRes.data.token;
-      localStorage.setItem("token", token);
+      setAuth({ token }, remember);
 
       const meRes = await axios.get(`/api/v1/auth/me`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const me = meRes.data;
-      const customer = await fetchCustomerProfile(token, me);
+      const [customer, kyc] = await Promise.all([
+        fetchCustomerProfile(token, me),
+        fetchCustomerKyc(token, me),
+      ]);
       const session = {
         ...normalizeSession(me, token),
         ...normalizeCustomerProfile(customer),
+        ...normalizeKyc(kyc),
       };
-      localStorage.setItem("userId", session.userId);
-      localStorage.setItem("firstName", session.name || "");
+      setAuth(
+        { userId: session.userId, firstName: session.name || "" },
+        remember,
+      );
       onDone(session);
     } catch (error) {
       const status = error.response?.status;
@@ -169,7 +179,13 @@ export function LoginPage({
               className="flex cursor-pointer items-center gap-2"
               style={{ color: "#3a4d55" }}
             >
-              <input type="checkbox" className="br-check" /> Remember me
+              <input
+                type="checkbox"
+                className="br-check"
+                checked={remember}
+                onChange={(e) => setRemember(e.target.checked)}
+              />{" "}
+              Remember me
             </label>
             <button
               type="button"

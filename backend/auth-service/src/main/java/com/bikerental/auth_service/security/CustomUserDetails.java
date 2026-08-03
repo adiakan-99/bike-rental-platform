@@ -22,6 +22,14 @@ public class CustomUserDetails implements UserDetails {
 		this.user = user;
 	}
 
+	public Integer getUserId() {
+		return user.getUserId();
+	}
+
+	public void setUserId(Integer userId) {
+		user.setUserId(userId);
+	}
+
 	@Override
 	public String getUsername() {
 
@@ -35,7 +43,9 @@ public class CustomUserDetails implements UserDetails {
 
 	@Override
 	public Collection<? extends GrantedAuthority> getAuthorities() {
-		return user.getUserRoles().stream().map(role -> new SimpleGrantedAuthority("ROLE_" + role.getRole())).toList();
+		return user.getUserRoles().stream().map(
+				role -> new SimpleGrantedAuthority("ROLE_" + role.getRole()))
+				.toList();
 	}
 
 	@Override

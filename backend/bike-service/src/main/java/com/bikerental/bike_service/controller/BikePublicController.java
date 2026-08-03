@@ -28,13 +28,15 @@ public class BikePublicController {
     @GetMapping("/search/browse")
     public ResponseEntity<Page<BikeCardDto>> browseBikes(
             @RequestParam(required = false) String city,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate,
             @RequestParam(required = false) String manufacturer,
             @RequestParam(required = false) String category,
             @RequestParam(required = false) BigDecimal minPrice,
             @RequestParam(required = false) BigDecimal maxPrice,
             @ParameterObject @PageableDefault(page = 0, size = 10) Pageable pageable) {
 
-        Page<BikeCardDto> result = bikeServices.browseBike(city, manufacturer, category, minPrice, maxPrice, pageable);
+        Page<BikeCardDto> result = bikeServices.browseBike(city, startDate, endDate, manufacturer, category, minPrice, maxPrice, pageable);
         return ResponseEntity.ok(result);
     }
 

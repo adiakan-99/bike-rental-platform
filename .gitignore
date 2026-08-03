@@ -14,6 +14,8 @@ target/
 .springBeans
 .sts4-cache
 
+node_modules/
+
 ### IntelliJ IDEA ###
 .idea
 *.iws
@@ -34,3 +36,4 @@ build/
 ### VS Code ###
 .vscode/
 
+backend/.metadata/

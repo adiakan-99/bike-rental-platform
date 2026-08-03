@@ -13,13 +13,16 @@ import {
   Phone,
   User,
 } from "lucide-react";
-import { FEATURES, GENDERS } from "../../../constants";
+import { FEATURES, FIELD_LIMITS, GENDERS } from "../../../constants";
 import { RX, pwScore } from "../../../lib/validation.js";
-import { Field, Label, SliderCaptcha } from "../../../ui";
+import { Field, Label } from "../../../ui";
+import { Turnstile } from "@marsidev/react-turnstile";
 import { SocialButtons } from "../components";
 import { ageFrom } from "../utils";
 
-const baseUrl = import.meta.env.VITE_API_BASE_URL1 || "http://localhost:8080";
+// Cloudflare Turnstile site key (public — safe to expose). Put it in .env as
+// VITE_TURNSTILE_SITE_KEY=... ; the matching SECRET key lives only on the backend.
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || "";
 
 export function RegisterPage({ onLogin, onDone, onRegistered, onSocial }) {
   const [v, setV] = useState({
@@ -37,12 +40,18 @@ export function RegisterPage({ onLogin, onDone, onRegistered, onSocial }) {
   const [regErr, setRegErr] = useState("");
   const [showPw, setShowPw] = useState(false),
     [showCpw, setShowCpw] = useState(false);
-  const [captcha, setCaptcha] = useState(false),
+  const [captchaToken, setCaptchaToken] = useState(""),
     [terms, setTerms] = useState(false);
   const [done, setDone] = useState(false);
 
   const set = (k) => (e) =>
     setV((p) => ({ ...p, [k]: e.target ? e.target.value : e }));
+  // Numeric setter: digits only, hard-capped — used for the phone field so no over-typing.
+  const setNum = (k, max) => (e) =>
+    setV((p) => ({
+      ...p,
+      [k]: e.target.value.replace(/\D/g, "").slice(0, max),
+    }));
   const blur = (k) => () => setT((p) => ({ ...p, [k]: true }));
   const score = pwScore(v.pw);
   const pwLevel = score <= 2 ? 1 : score === 3 ? 2 : 3; // 1 weak · 2 medium · 3 strong
@@ -70,7 +79,7 @@ export function RegisterPage({ onLogin, onDone, onRegistered, onSocial }) {
   else if (v.cpw !== v.pw) errors.cpw = "Passwords do not match.";
 
   const missing =
-    Object.keys(errors).length + (captcha ? 0 : 1) + (terms ? 0 : 1);
+    Object.keys(errors).length + (captchaToken ? 0 : 1) + (terms ? 0 : 1);
   const valid = missing === 0;
   const err = (k) => t[k] && errors[k];
 
@@ -82,8 +91,8 @@ export function RegisterPage({ onLogin, onDone, onRegistered, onSocial }) {
     setRegErr("");
     setBusy(true);
     try {
-      // Field names match your real /api/v1/auth/register schema.
-      await axios.post(`${baseUrl}/api/v1/auth/register`, {
+      // Relative path → goes through the Vite proxy to the gateway.
+      await axios.post(`/api/v1/auth/register`, {
         firstName: v.first.trim(),
         lastName: v.last.trim(),
         email: v.email.trim(),
@@ -92,11 +101,9 @@ export function RegisterPage({ onLogin, onDone, onRegistered, onSocial }) {
         gender: v.gender
           ? v.gender.toUpperCase().replace(/ /g, "_")
           : undefined,
-        // NOTE: SliderCaptcha is a UI-only slide gesture (produces a boolean, not a real
-        // anti-bot token). Sending a placeholder so registration isn't blocked by a missing
-        // field — this provides no actual bot protection. To make captchaToken meaningful,
-        // integrate a real provider (reCAPTCHA/hCaptcha/Cloudflare Turnstile) and send its token here instead.
-        captchaToken: "slider-verified",
+        // Real Cloudflare Turnstile token — the backend verifies it against Cloudflare's
+        // siteverify API using the SECRET key before creating the user.
+        captchaToken,
       });
       onRegistered?.({
         email: v.email.trim(),
@@ -218,6 +225,7 @@ export function RegisterPage({ onLogin, onDone, onRegistered, onSocial }) {
                 onChange={set("first")}
                 onBlur={blur("first")}
                 placeholder="Aarav"
+                maxLength={FIELD_LIMITS.name}
                 className="br-input w-full text-sm"
               />
             </Field>
@@ -233,6 +241,7 @@ export function RegisterPage({ onLogin, onDone, onRegistered, onSocial }) {
                 onChange={set("last")}
                 onBlur={blur("last")}
                 placeholder="Sharma"
+                maxLength={FIELD_LIMITS.name}
                 className="br-input w-full text-sm"
               />
             </Field>
@@ -291,6 +300,7 @@ export function RegisterPage({ onLogin, onDone, onRegistered, onSocial }) {
                 onChange={set("email")}
                 onBlur={blur("email")}
                 placeholder="you@email.com"
+                maxLength={FIELD_LIMITS.email}
                 className="br-input w-full text-sm"
               />
             </Field>
@@ -306,9 +316,11 @@ export function RegisterPage({ onLogin, onDone, onRegistered, onSocial }) {
               </span>
               <input
                 value={v.phone}
-                onChange={set("phone")}
+                onChange={setNum("phone", FIELD_LIMITS.phone)}
                 onBlur={blur("phone")}
-                placeholder="98765 43210"
+                placeholder="9876543210"
+                maxLength={FIELD_LIMITS.phone}
+                inputMode="numeric"
                 className="br-input w-full text-sm"
               />
             </Field>
@@ -401,12 +413,15 @@ export function RegisterPage({ onLogin, onDone, onRegistered, onSocial }) {
             </Field>
           </div>
 
-          {/* CAPTCHA — client-side slider challenge */}
-          <div
-            className="mt-6 w-full max-w-xs rounded-xl px-4 py-3"
-            style={{ border: "1px solid var(--line)", background: "#fafbfb" }}
-          >
-            <SliderCaptcha onVerify={setCaptcha} />
+          {/* CAPTCHA — Cloudflare Turnstile */}
+          <div className="mt-6 w-full">
+            <Turnstile
+              siteKey={TURNSTILE_SITE_KEY}
+              onSuccess={(token) => setCaptchaToken(token)}
+              onError={() => setCaptchaToken("")}
+              onExpire={() => setCaptchaToken("")}
+              options={{ theme: "light" }}
+            />
           </div>
 
           {/* Terms */}

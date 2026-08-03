@@ -1,39 +1,80 @@
 [
   {
     "ContainingType": "booking_service.Controllers.BookingsController",
-    "Method": "Cancel",
-    "RelativePath": "api/Bookings/{id}/cancel",
-    "HttpMethod": "PATCH",
+    "Method": "CreateBooking",
+    "RelativePath": "api/v1/bookings",
+    "HttpMethod": "POST",
     "IsController": true,
     "Order": 0,
     "Parameters": [
       {
-        "Name": "id",
-        "Type": "System.Int32",
-        "IsRequired": true
-      },
-      {
         "Name": "request",
-        "Type": "booking_service.Contracts.CancelBookingRequest",
+        "Type": "booking_service.Contracts.CreateBookingRequestDto",
         "IsRequired": true
       }
     ],
-    "ReturnTypes": []
+    "ReturnTypes": [
+      {
+        "Type": "booking_service.Contracts.BookingResponseDto",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
   },
   {
     "ContainingType": "booking_service.Controllers.BookingsController",
-    "Method": "Return",
-    "RelativePath": "api/Bookings/{id}/return",
-    "HttpMethod": "PATCH",
+    "Method": "GetMyBookings",
+    "RelativePath": "api/v1/bookings/mine",
+    "HttpMethod": "GET",
     "IsController": true,
     "Order": 0,
     "Parameters": [
       {
-        "Name": "id",
-        "Type": "System.Int32",
+        "Name": "query",
+        "Type": "booking_service.Contracts.BookingFilterQueryDto",
         "IsRequired": true
       }
     ],
-    "ReturnTypes": []
+    "ReturnTypes": [
+      {
+        "Type": "booking_service.Contracts.PagedResultDto\u00601[[booking_service.Contracts.BookingResponseDto, booking-service, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "booking_service.Controllers.BookingsController",
+    "Method": "GetBookingQuote",
+    "RelativePath": "api/v1/bookings/quote",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "request",
+        "Type": "booking_service.Contracts.QuoteRequestDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "booking_service.Contracts.QuoteResponseDto",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
   }
 ]
