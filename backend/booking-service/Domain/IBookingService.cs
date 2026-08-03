@@ -6,5 +6,6 @@ namespace booking_service.Domain
     {
         Task<BookingResponseDto> CreateBookingAsync(int userId, CreateBookingRequestDto request, string authHeader);
         Task<PagedResultDto<BookingResponseDto>> GetCustomerBookingsAsync(int userId, BookingFilterQueryDto query, string authHeader);
+        Task<BookingResponseDto> GetBookingByIdAsync(int bookingId, int userId, string authHeader);
     }
 }

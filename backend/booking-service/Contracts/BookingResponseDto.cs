@@ -10,6 +10,7 @@ namespace booking_service.Contracts
         public int BikeId { get; set; }
         public int PartnerId { get; set; }
         public DateTime PickupDateTime { get; set; }
+        public DateTime? ActualReturnTime { get; set; }
         public DateTime ScheduledReturnDateTime { get; set; }
         public BookingStatus BookingStatus { get; set; }
         public decimal TotalAmount { get; set; }
@@ -18,5 +19,6 @@ namespace booking_service.Contracts
         public PaymentStatus PaymentStatus { get; set; }
         public string PaymentRef { get; set; } = default!;
         public DateTime CreatedAt { get; set; }
+        public List<DepositDeductionDto> Deductions { get; set; } = new();
     }
 }

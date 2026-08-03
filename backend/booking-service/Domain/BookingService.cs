@@ -116,6 +116,66 @@ namespace booking_service.Domain
             };
         }
 
+        public async Task<BookingResponseDto> GetBookingByIdAsync(int bookingId, int userId, string authHeader)
+        {
+            var customer = await _customerServiceClient.GetCustomerKycStatusAsync(userId, authHeader);
+
+            if (customer == null || customer.KycStatus != "VERIFIED")
+            {
+                throw new KeyNotFoundException($"No customer found associated with User id: {userId}");
+            }
+
+            var booking = await _dbContext.Bookings
+                .AsNoTracking()
+                .Include(b => b.Deductions)
+                .FirstOrDefaultAsync(b => b.BookingId == bookingId);
+
+            if (booking == null)
+            {
+                throw new KeyNotFoundException($"No booking with booking id: {bookingId}");
+            }
+
+            if (booking.CustomerId != customer.CustomerId)
+            {
+                throw new UnauthorizedAccessException("You do not have permission to view this page");
+            }
+
+            return new BookingResponseDto
+            {
+                BookingId = booking.BookingId,
+                BookingRef = booking.BookingRef,
+                CustomerId = booking.CustomerId,
+                BikeId = booking.BikeId,
+                PartnerId = booking.PartnerId,
+                PickupDateTime = booking.PickupDateTime,
+                ScheduledReturnDateTime = booking.ScheduledReturnDateTime,
+                ActualReturnTime = booking.ActualReturnTime,
+                BookingStatus = booking.BookingStatus,
+                TotalAmount = booking.TotalAmount,
+                SecurityDepositAmount = booking.SecurityDepositAmount ?? 0,
+                SecurityDepositStatus = booking.SecurityDepositStatus ?? DepositStatus.Held,
+                PaymentStatus = booking.PaymentStatus,
+                PaymentRef = booking.PaymentRef ?? string.Empty,
+                CreatedAt = booking.CreatedAt,
+                Deductions = booking.Deductions.Select(d => new DepositDeductionDto
+                {
+                    DeductionId = d.DeductionId,
+                    BookingId = d.BookingId,
+                    Description = d.Description,
+                    Amount = d.Amount,
+                    DocumentUrl = d.DocumentUrl,
+                    RecordedBy = d.RecordedBy,
+                    CreatedAt = d.CreatedAt,
+                    Status = d.Status,
+                    DisputedAt = d.DisputedAt,
+                    DisputeReason = d.DisputeReason,
+                    ResolvedAt = d.ResolvedAt,
+                    ResolutionNote = d.ResolutionNote,
+                    ResolvedBy = d.ResolvedBy
+                }).ToList()
+            };
+        }
+
         public async Task<PagedResultDto<BookingResponseDto>> GetCustomerBookingsAsync(int userId, BookingFilterQueryDto query, string authHeader)
         {
             var customer = await _customerServiceClient.GetCustomerKycStatusAsync(userId, authHeader);
