@@ -8,3 +8,6 @@ createRoot(document.getElementById("root")).render(
     <App />
   </AuthProvider>
 );
+
+import * as bikesApi from "./api/bikes.js";
+window.bikesApi = bikesApi;

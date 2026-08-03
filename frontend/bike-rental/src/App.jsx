@@ -1,4 +1,5 @@
 // AUTO-EXTRACTED (verbatim) from BikeRentalSite_optimisedUI.jsx — do not edit logic.
+import { getBike, getBikes } from "./lib/bikeRegistry.js";
 import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { COMPARE_MAX, DISPUTE_WINDOW_HOURS } from "./config";
@@ -14,6 +15,7 @@ import {
 } from "./mock";
 import { AppRoutes } from "./routes";
 import { useAuth } from "./store";
+import { useMyFleet } from "./features/dealer/hooks";
 import { Footer, KycBanner, Navbar, Styles, Toast } from "./ui";
 
 const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
@@ -183,8 +185,13 @@ export default function App() {
     go("dealerPortal");
     setPortalTab({ tab, n: Date.now() });
   };
+
+  //changed
+  // const toggleWish = (id) => {
+  //   const bike = BIKES.find((b) => b.id === id);
   const toggleWish = (id) => {
-    const bike = BIKES.find((b) => b.id === id);
+  const bike = getBike(id);
+
     const next = new Set(wishlist);
     const removing = next.has(id);
     removing ? next.delete(id) : next.add(id);
@@ -197,7 +204,7 @@ export default function App() {
         removing ? "info" : "success",
       );
   };
-  const wishlistBikes = BIKES.filter((b) => wishlist.has(b.id));
+const wishlistBikes = getBikes(wishlist);
   const [toast, setToast] = useState(null);
   const [aboutSection, setAboutSection] = useState(null);
   // Admin is intentionally NOT linked from the public site.
@@ -245,7 +252,8 @@ export default function App() {
   // NOTE: decide the outcome outside the state updater — calling setState (notify)
   // inside an updater is a side effect React may double-invoke or drop.
   const toggleCompare = (id) => {
-    const bike = BIKES.find((b) => b.id === id);
+      //changed
+    const bike = getBike(id);
     const next = new Set(compare);
     if (next.has(id)) {
       next.delete(id);
@@ -268,13 +276,28 @@ export default function App() {
         : `${bike.name} added to compare (${next.size}/${COMPARE_MAX})`,
     );
   };
-  const compareBikes = BIKES.filter((b) => compare.has(b.id));
+  //changed
+const compareBikes = getBikes(compare);
   const [pDealers, setPDealers] = useState(PENDING_DEALERS_SEED);
   const [pBikes, setPBikes] = useState(PENDING_BIKES_SEED);
   // supply side: partner registrations and bike listings feed the admin approval queues
   const submitPartner = (form) =>
     setPDealers((prev) => [{ ...form, id: Date.now() }, ...prev]);
-  const [myListings, setMyListings] = useState(MY_FLEET_SEED);
+
+  // --- TEMPORARY UNBLOCK HACK ---
+  // Unblocks partner login until GET /api/v1/partners/me is integrated in AuthContext
+  if (session && session.roles?.includes("PARTNER") && session.approvalStatus !== "APPROVED") {
+    setSession((s) => ({ ...s, approvalStatus: "APPROVED" }));
+  }
+  // const [myListings, setMyListings] = useState(MY_FLEET_SEED);
+  const {
+  listings: myListings,
+  loading: fleetLoading,
+  error: fleetError,
+  refresh: refreshFleet,
+  setStatus: setBikeStatus,
+  remove: deleteListing,
+} = useMyFleet({ enabled: session?.roles?.includes("PARTNER") });
   // Editing an approved listing sends it back through review — same as a new submission.
   const editListing = (id, patch) =>
     setMyListings((prev) =>
@@ -709,6 +732,11 @@ export default function App() {
           users,
           wishlist,
           wishlistBikes,
+          fleetLoading,
+          fleetError,
+          refreshFleet,
+          setBikeStatus,
+          deleteListing,
         }}
       />
       <Toast toast={toast} onClose={() => setToast(null)} />

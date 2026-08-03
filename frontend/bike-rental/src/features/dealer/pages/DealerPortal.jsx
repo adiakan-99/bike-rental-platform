@@ -1,6 +1,25 @@
-// AUTO-EXTRACTED (verbatim) from BikeRentalSite_optimisedUI.jsx — do not edit logic.
+// UPDATED for bike-service. Only the FLEET tab changed — dashboard and bookings
+// are untouched, since those depend on booking-service which isn't built yet.
+//
+// WHAT CHANGED
+//
+// 1. Fleet now has loading and error states. Previously `listings` arrived
+//    instantly from a seed array, so there was nothing to wait for.
+//
+// 2. Real photos. The old card passed `bike={{ cat: l.cat }}` — deliberately
+//    throwing away the image so it always drew the category gradient.
+//
+// 3. Status controls are live. The backend tracks bikeStatus separately from
+//    approvalStatus, so an approved partner can take a bike off the road for
+//    maintenance without losing approval. That control didn't exist before.
+//
+// 4. Delete is wired.
+//
+// NOTE ON "Resubmit": that button needs the full PUT /partner/{id}, which needs
+// the complete listing payload — that's Step 6. It's disabled with a tooltip
+// until then rather than silently doing nothing.
 import { useEffect, useState } from "react";
-import { Check, ChevronLeft, Clock3, Gauge, Pencil, PlusCircle, Search, Upload, X, XCircle } from "lucide-react";
+import { Check, ChevronLeft, Clock3, Gauge, Pencil, PlusCircle, RefreshCw, Search, Trash2, Upload, X, XCircle } from "lucide-react";
 import { BOOK_FILTERS, LISTING_STATUS } from "../../../constants";
 import { fmtDay, hoursLeft } from "../../../lib/datetime.js";
 import { depositLabel, hasOpenDispute } from "../../../lib/deposit.js";
@@ -8,19 +27,44 @@ import { inr } from "../../../lib/money.js";
 import { BikeImage, Chip, EmptyList, StatusTag } from "../../../ui";
 import { AddBikeForm, DealerDashboard, RecordInspection, ResubmitModal, StatusPill } from "../components";
 
-export function DealerPortal({ session, rentals, onInspect, listings = [], onListBike, onEditListing, onSetListingStatus, onRegister, onBrowse, onHome, portalTab }) {
+// The backend's four bikeStatus values. RENTED is omitted deliberately — it's set
+// by the booking flow, not by the partner clicking a button.
+const STATUS_ACTIONS = [
+  { value: "AVAILABLE", label: "Available" },
+  { value: "MAINTENANCE", label: "Maintenance" },
+  { value: "INACTIVE", label: "Inactive" },
+];
+
+// Colours for the statuses fleetStatusLabel() can now produce beyond the
+// original four in LISTING_STATUS.
+const EXTRA_STATUS = {
+  Maintenance: { fg: "#b45309", bg: "#fef3c7" },
+  Rented: { fg: "#1d4ed8", bg: "#dbeafe" },
+  Inactive: { fg: "#334155", bg: "var(--form-bg)" },
+};
+
+export function DealerPortal({
+  session, rentals, onInspect, listings = [], fleetLoading = false, fleetError = null,
+  onRefreshFleet, onSetBikeStatus, onDeleteListing,
+  onListBike, onEditListing, onSetListingStatus, onRegister, onBrowse, onHome, portalTab,
+}) {
   const approved = session?.approvalStatus === "APPROVED";
   const [sel, setSel] = useState(null);
-  const [editing, setEditing] = useState(null);   // listing id currently being edited
-  const [resubmit, setResubmit] = useState(null); // listing id open in the resubmit modal
-  const [dTab, setDTab] = useState("dashboard"); // dashboard | bookings | fleet
-  const [bookFilter, setBookFilter] = useState("all"); // all | inspection | disputes | upcoming | settling
+  const [editing, setEditing] = useState(null);
+  const [resubmit, setResubmit] = useState(null);
+  const [dTab, setDTab] = useState("dashboard");
+  const [bookFilter, setBookFilter] = useState("all");
   const [fleetFilter, setFleetFilter] = useState("all");
   const [adding, setAdding] = useState(false);
-  const goTab = (tab, filter = "all") => { setDTab(tab); if (tab === "bookings") setBookFilter(filter); if (tab === "fleet") setFleetFilter(filter); setSel(null); setAdding(false); setEditing(null); setResubmit(null); };
-  // The profile menu can request a specific tab (e.g. "My fleet") on open.
-  useEffect(() => { if (portalTab?.tab) goTab(portalTab.tab); }, [portalTab]);
+  const [busyId, setBusyId] = useState(null); // listing currently mid-request
 
+  const goTab = (tab, filter = "all") => {
+    setDTab(tab);
+    if (tab === "bookings") setBookFilter(filter);
+    if (tab === "fleet") setFleetFilter(filter);
+    setSel(null); setAdding(false); setEditing(null); setResubmit(null);
+  };
+  useEffect(() => { if (portalTab?.tab) goTab(portalTab.tab); }, [portalTab]);
 
   const selected = sel && rentals.find((r) => r.id === sel);
   const bookF = BOOK_FILTERS.find((x) => x.k === bookFilter) || BOOK_FILTERS[0];
@@ -33,8 +77,17 @@ export function DealerPortal({ session, rentals, onInspect, listings = [], onLis
     return null;
   };
 
-  // Until an admin approves the account there is no portal to show — no fleet, no
-  // bookings, no dashboard. The dealer uses the site as a customer in the meantime.
+  const changeStatus = async (id, value) => {
+    setBusyId(id);
+    try { await onSetBikeStatus?.(id, value); } finally { setBusyId(null); }
+  };
+
+  const removeListing = async (l) => {
+    if (!window.confirm(`Delete ${l.name} (${l.reg}) from your fleet? This can't be undone.`)) return;
+    setBusyId(l.id);
+    try { await onDeleteListing?.(l.id); } finally { setBusyId(null); }
+  };
+
   if (!approved) {
     const rejected = session?.approvalStatus === "REJECTED";
     return (
@@ -50,7 +103,6 @@ export function DealerPortal({ session, rentals, onInspect, listings = [], onLis
               ? "Your partner application wasn't approved. Our team will have emailed the reason and the documents to correct."
               : <>Thanks for registering as a partner, {session?.name?.split(" ")[0] || "there"}. An admin is reviewing your documents — the dealer portal and bike listings unlock once you're approved.</>}
           </p>
-
           <div className="mt-5 flex flex-col gap-2 rounded-xl p-4 text-left" style={{ background: "var(--form-bg)" }}>
             {[["Registration received", true], ["Documents under review", !rejected], ["Portal & listings unlocked", false]].map(([label, done], i) => (
               <div key={i} className="flex items-center gap-2.5 text-sm">
@@ -61,7 +113,6 @@ export function DealerPortal({ session, rentals, onInspect, listings = [], onLis
               </div>
             ))}
           </div>
-
           <p className="mt-5 br-display text-xs font-bold uppercase tracking-wide" style={{ color: "var(--brand-strong)" }}>Meanwhile</p>
           <p className="mt-1 text-sm" style={{ color: "var(--mute)" }}>You can still browse and rent bikes with this same account, just like any rider.</p>
           <button onClick={onBrowse} className="br-btn br-display mt-4 flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold"><Search size={16} /> Browse &amp; rent bikes</button>
@@ -96,38 +147,118 @@ export function DealerPortal({ session, rentals, onInspect, listings = [], onLis
           : (
             <div className="mt-6">
               <button onClick={() => goTab("dashboard")} className="br-crumb mb-4 flex items-center gap-1.5 text-sm font-semibold"><ChevronLeft size={16} /> Back to dashboard</button>
+
               <div className="mb-4 flex items-center justify-between">
-                <h2 className="br-display text-lg font-bold">My Fleet</h2>
-                <button onClick={() => approved && setAdding(true)} disabled={!approved} title={approved ? undefined : "Your application is still under review"} className="br-btn br-display flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold" style={!approved ? { background: "#c3d5dd", boxShadow: "none", cursor: "not-allowed" } : undefined}><PlusCircle size={16} /> Add a bike</button>
+                <h2 className="br-display text-lg font-bold">
+                  My Fleet
+                  {!fleetLoading && listings.length > 0 && (
+                    <span className="ml-2 text-sm font-normal" style={{ color: "var(--mute)" }}>{listings.length} bikes</span>
+                  )}
+                </h2>
+                <div className="flex items-center gap-2">
+                  <button onClick={onRefreshFleet} disabled={fleetLoading} aria-label="Refresh fleet" className="br-ghost grid h-10 w-10 place-items-center rounded-xl">
+                    <RefreshCw size={15} className={fleetLoading ? "animate-spin" : undefined} />
+                  </button>
+                  <button onClick={() => setAdding(true)} className="br-btn br-display flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold">
+                    <PlusCircle size={16} /> Add a bike
+                  </button>
+                </div>
               </div>
+
+              {fleetError && (
+                <div className="br-card mb-4 flex items-center justify-between gap-3 rounded-2xl px-4 py-3 text-sm" style={{ color: "#b91c1c" }}>
+                  <span>{fleetError}</span>
+                  <button onClick={onRefreshFleet} className="br-ghost br-display rounded-lg px-3 py-1.5 text-xs font-semibold">Retry</button>
+                </div>
+              )}
+
               {fleetFilter !== "all" && (
                 <div className="mb-3 flex items-center justify-between rounded-xl px-3 py-2 text-sm" style={{ background: "var(--form-bg)" }}>
                   <span style={{ color: "#3a4d55" }}>Showing <span className="font-semibold">{fleetFilter === "rejected" ? "rejected listings" : fleetFilter}</span></span>
                   <button onClick={() => setFleetFilter("all")} className="flex items-center gap-1 text-xs font-semibold" style={{ color: "var(--brand-strong)" }}><X size={12} /> Clear</button>
                 </div>
               )}
-              {listings.length === 0 ? <EmptyList label="No bikes listed yet" /> : (
+
+              {fleetLoading && listings.length === 0 ? (
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                  {listings.filter((l) => fleetFilter === "all" || (fleetFilter === "rejected" && l.status === "Rejected")).map((l) => {
-                    const meta = LISTING_STATUS[l.status] || LISTING_STATUS.Draft;
-                    return (
-                      <div key={l.id} className="br-card overflow-hidden rounded-2xl shadow-sm">
-                        <BikeImage bike={{ cat: l.cat }} className="h-24" />
-                        <div className="p-4">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0"><p className="br-display truncate text-sm font-bold">{l.name}</p><p className="text-xs" style={{ color: "var(--mute)" }}>{l.mf} · {l.reg}</p></div>
-                            <StatusTag meta={{ label: l.status, fg: meta.fg, bg: meta.bg }} />
-                          </div>
-                          <div className="mt-2 flex flex-wrap gap-1.5"><Chip>{l.cat}</Chip><Chip><Gauge size={12} />{l.cc ? `${l.cc}cc` : "EV"}</Chip><Chip>{inr(l.price)}/day</Chip><Chip>{l.deposit === 0 ? "No deposit" : `${inr(l.deposit)} dep.`}</Chip></div>
-                          {l.note && <p className="mt-2 rounded-lg px-3 py-2 text-xs" style={{ background: "#fee2e2", color: "#b91c1c" }}>{l.note}</p>}
-                          <div className="mt-3 flex gap-2">
-                            <button onClick={() => setEditing(l.id)} className="br-ghost br-display flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold"><Pencil size={12} /> Edit</button>
-                            {l.status === "Rejected" && <button onClick={() => setResubmit(l.id)} className="br-btn br-display flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold"><Upload size={12} /> Resubmit Details</button>}
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="br-card h-64 animate-pulse rounded-2xl" style={{ background: "var(--form-bg)" }} />
+                  ))}
+                </div>
+              ) : listings.length === 0 ? (
+                <EmptyList label="No bikes listed yet" />
+              ) : (
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  {listings
+                    .filter((l) => fleetFilter === "all" || (fleetFilter === "rejected" && l.status === "Rejected"))
+                    .map((l) => {
+                      const meta = LISTING_STATUS[l.status] || EXTRA_STATUS[l.status] || LISTING_STATUS.Draft;
+                      const busy = busyId === l.id;
+                      // Status can only be changed once the listing is approved —
+                      // a pending bike has no road status to toggle.
+                      const canChangeStatus = l.approvalStatus === "APPROVED" && l.bikeStatus !== "RENTED";
+                      return (
+                        <div key={l.id} className="br-card overflow-hidden rounded-2xl shadow-sm" style={busy ? { opacity: 0.6 } : undefined}>
+                          <BikeImage bike={l} className="h-24" />
+                          <div className="p-4">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className="br-display truncate text-sm font-bold">{l.name}</p>
+                                <p className="text-xs" style={{ color: "var(--mute)" }}>{l.mf} · {l.reg}</p>
+                              </div>
+                              <StatusTag meta={{ label: l.status, fg: meta.fg, bg: meta.bg }} />
+                            </div>
+
+                            <div className="mt-2 flex flex-wrap gap-1.5">
+                              <Chip>{l.cat}</Chip>
+                              <Chip><Gauge size={12} />{l.cc ? `${l.cc}cc` : "EV"}</Chip>
+                              <Chip>{inr(l.price)}/day</Chip>
+                              <Chip>{l.deposit === 0 ? "No deposit" : `${inr(l.deposit)} dep.`}</Chip>
+                            </div>
+
+                            {l.note && (
+                              <p className="mt-2 rounded-lg px-3 py-2 text-xs" style={{ background: "#fee2e2", color: "#b91c1c" }}>{l.note}</p>
+                            )}
+
+                            {canChangeStatus && (
+                              <div className="mt-3 flex items-center gap-2">
+                                <span className="text-xs" style={{ color: "var(--mute)" }}>Status</span>
+                                <select
+                                  value={l.bikeStatus}
+                                  disabled={busy}
+                                  onChange={(e) => changeStatus(l.id, e.target.value)}
+                                  className="br-input flex-1 text-xs font-semibold"
+                                >
+                                  {STATUS_ACTIONS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+                                </select>
+                              </div>
+                            )}
+                            {l.bikeStatus === "RENTED" && (
+                              <p className="mt-3 text-xs" style={{ color: "var(--mute)" }}>Currently rented — status locked until return.</p>
+                            )}
+
+                            <div className="mt-3 flex gap-2">
+                              <button onClick={() => setEditing(l.id)} disabled={busy} className="br-ghost br-display flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold">
+                                <Pencil size={12} /> Edit
+                              </button>
+                              {l.status === "Rejected" && (
+                                <button
+                                  disabled
+                                  title="Resubmitting needs the full listing update — coming with the Add Bike form"
+                                  className="br-ghost br-display flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold"
+                                  style={{ opacity: 0.5, cursor: "not-allowed" }}
+                                >
+                                  <Upload size={12} /> Resubmit
+                                </button>
+                              )}
+                              <button onClick={() => removeListing(l)} disabled={busy} aria-label="Delete listing" className="br-ghost grid w-10 place-items-center rounded-lg" style={{ color: "#b91c1c" }}>
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
                 </div>
               )}
             </div>
