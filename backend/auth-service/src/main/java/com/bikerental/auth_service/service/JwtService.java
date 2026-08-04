@@ -31,24 +31,31 @@ public class JwtService {
 
 	private boolean isTokenExpired(String token) {
 
-		return Jwts.parser().verifyWith(getSigningKey()).build().parseSignedClaims(token).getPayload().getExpiration()
+		return Jwts.parser().verifyWith(getSigningKey()).build()
+				.parseSignedClaims(token).getPayload().getExpiration()
 				.before(new Date());
 	}
 
 	private Claims extractClaims(String token) {
-		return Jwts.parser().verifyWith(getSigningKey()).build().parseSignedClaims(token).getPayload();
+		return Jwts.parser().verifyWith(getSigningKey()).build()
+				.parseSignedClaims(token).getPayload();
 	}
 
 	public String generateToken(User user) {
 
-		Set<String> roles = user.getUserRoles().stream().map(userRole -> userRole.getRole().getName())
+		Set<String> roles = user.getUserRoles().stream()
+				.map(userRole -> userRole.getRole().getName())
 				.collect(Collectors.toSet());
 
 		System.out.println(roles);
 
-		return Jwts.builder().subject(user.getEmail()).claim("userId", user.getUserId()).claim("roles", roles)
-				.claim("firstName", user.getFirstName()).issuedAt(new Date())
-				.expiration(new Date(System.currentTimeMillis() + jwtExpiration)).signWith(getSigningKey()).compact();
+		return Jwts.builder().subject(user.getEmail())
+				.claim("userId", user.getUserId()).claim("roles", roles)
+				.claim("firstName", user.getFirstName())
+				.claim("lastName", user.getLastName()).issuedAt(new Date())
+				.expiration(
+						new Date(System.currentTimeMillis() + jwtExpiration))
+				.signWith(getSigningKey()).compact();
 
 	}
 
@@ -64,7 +71,8 @@ public class JwtService {
 
 			String username = extractUsername(token);
 
-			return username.equals(userDetails.getUsername()) && !isTokenExpired(token);
+			return username.equals(userDetails.getUsername())
+					&& !isTokenExpired(token);
 
 		} catch (Exception e) {
 			return false;

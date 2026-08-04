@@ -1,5 +1,4 @@
-// AUTO-EXTRACTED (verbatim) from BikeRentalSite_optimisedUI.jsx — do not edit logic.
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { getBike, getBikes } from "./lib/bikeRegistry.js";
 import axios from "axios";
 import { COMPARE_MAX, DISPUTE_WINDOW_HOURS } from "./config";
@@ -270,6 +269,24 @@ export default function App() {
   }, []);
   // A suspended session is confined to its own history plus support/legal pages.
   // Anything else bounces back rather than rendering a half-working screen.
+  // On first load, a restored session (from the token) doesn't pass through afterAuth,
+  // so staff would land on the public home page after a reload. Route them to their
+  // workspace once, on initial hydration. Runs a single time (guarded by the ref), so an
+  // admin can still choose to browse home later in the session.
+  const didInitialRoute = useRef(false);
+  useEffect(() => {
+    if (didInitialRoute.current || !session) return;
+    didInitialRoute.current = true;
+    if (isSuspended(session)) return; // suspended users are handled by their own redirect
+    if (page !== "home") return; // only override the default landing, not a deliberate page
+    if (session.roles?.includes(ROLE.ADMIN)) go("admin");
+    else if (
+      session.roles?.includes(ROLE.PARTNER) &&
+      session.approvalStatus === "APPROVED"
+    )
+      openPortal("dashboard");
+  }, [session]);
+
   useEffect(() => {
     if (
       isSuspended(session) &&
@@ -658,14 +675,34 @@ export default function App() {
     setUsers((prev) => [...prev, created]);
     return created;
   };
-  const resetPassword = (email, newPw) => {
-    setUsers((prev) =>
-      prev.map((u) =>
-        u.email.toLowerCase() === String(email).toLowerCase()
-          ? { ...u, password: newPw }
-          : u,
-      ),
-    );
+  // Step 1 of reset — request a token by email. Always resolve ok (don't reveal whether
+  // the email exists — account-enumeration guard).
+  const forgotPassword = async (email) => {
+    try {
+      await axios.post(`/api/v1/auth/forgot-password`, {
+        email: String(email).trim(),
+      });
+    } catch {
+      /* swallow */
+    }
+    return { ok: true };
+  };
+  // Step 2 of reset — submit the emailed token + new password.
+  const resetPassword = async (token, newPassword) => {
+    try {
+      await axios.post(`/api/v1/auth/reset-password`, {
+        token: String(token).trim(),
+        newPassword,
+      });
+      return { ok: true };
+    } catch (e) {
+      return {
+        ok: false,
+        error:
+          e.response?.data?.message ||
+          "That code is invalid or has expired. Request a new one.",
+      };
+    }
   };
   // Link by verified email if we already know the address, otherwise provision a new rider.
   const socialAuth = (profile) => {
@@ -925,6 +962,7 @@ export default function App() {
           portalTab,
           recordIdentity,
           recordInspection,
+          forgotPassword,
           registerUser,
           rentals,
           resetPassword,

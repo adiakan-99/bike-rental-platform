@@ -9,7 +9,11 @@ import java.io.Serializable;
  */
 @Data
 public class PartnerCreationResponseDto implements Serializable {
-    private Integer partnerId;
+    /**
+	 * 
+	 */
+	private static final long serialVersionUID = 4321444828336596501L;
+	private Integer partnerId;
     private String sellerType;
     private String approvalStatus;
 }

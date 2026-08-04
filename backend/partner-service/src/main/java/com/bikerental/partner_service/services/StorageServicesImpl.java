@@ -7,6 +7,7 @@ import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.Http;
 import io.minio.MinioClient;
 import io.minio.errors.MinioException;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -17,21 +18,22 @@ import java.util.concurrent.TimeUnit;
 
 @Service
 public class StorageServicesImpl implements StorageServices {
-    private final MinioClient minioClient;
+    
+    private final MinioClient publicMinioClient;
+
+    @Value("${minio.public-url}")
+    private String publicUrl;
+
+    @Value("${minio.bucket-name}")
+    private String bucketName;
 
     private static final List<String> ALLOWED_CONTENT_TYPES = List.of(
             "image/jpeg", "image/png", "image/webp", "application/pdf", "image/jpg"
     );
 
-    public StorageServicesImpl(MinioClient minioClient) {
-        this.minioClient = minioClient;
+    public StorageServicesImpl(@Qualifier("publicMinioClient") MinioClient publicMinioClient) {
+        this.publicMinioClient = publicMinioClient;
     }
-
-    @Value("${minio.url}")
-    private String url;
-
-    @Value("${minio.bucket-name}")
-    private String bucketName;
 
     @Override
     public FileUploadUrlDto getFileUploadUrl(FileUploadRequestUrlDto requestDto, Integer userId) {
@@ -52,7 +54,7 @@ public class StorageServicesImpl implements StorageServices {
             String objectKey = folderPath + "/" + UUID.randomUUID().toString() + extension;
 
             // 2. Build the short-lived Pre-Signed PUT Upload URL (valid for 15 minutes)
-            String presignedUrl = minioClient.getPresignedObjectUrl(
+            String presignedUrl = publicMinioClient.getPresignedObjectUrl(
                     GetPresignedObjectUrlArgs.builder()
                             .method(Http.Method.PUT)
                             .bucket(bucketName)
@@ -63,7 +65,7 @@ public class StorageServicesImpl implements StorageServices {
             );
 
             // 3. Construct permanent storage path reference to save in PostgreSQL later
-            String permanentFileUrl = url + "/" + bucketName + "/" + objectKey;
+            String permanentFileUrl = publicUrl + "/" + bucketName + "/" + objectKey;
 
             // 4. Return DTO containing both URLs
             return new FileUploadUrlDto(presignedUrl, permanentFileUrl);
@@ -76,10 +78,10 @@ public class StorageServicesImpl implements StorageServices {
     @Override
     public String getFileDownloadUrl(String permanentFileUrl) {
         try {
-            String prefixToRemove = url + "/" + bucketName + "/";
+            String prefixToRemove = publicUrl + "/" + bucketName + "/";
             String objectKey = permanentFileUrl.replaceAll(prefixToRemove, "");
 
-            return minioClient.getPresignedObjectUrl(
+            return publicMinioClient.getPresignedObjectUrl(
                     GetPresignedObjectUrlArgs.builder()
                             .method(Http.Method.GET)
                             .bucket(bucketName)

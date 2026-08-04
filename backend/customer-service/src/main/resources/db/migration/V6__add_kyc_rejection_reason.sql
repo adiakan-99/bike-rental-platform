@@ -1,0 +1,1 @@
+ALTER TABLE customer_kyc ADD COLUMN IF NOT EXISTS rejection_reason VARCHAR(255);

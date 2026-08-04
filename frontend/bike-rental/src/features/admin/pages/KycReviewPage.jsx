@@ -2,36 +2,68 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import { ShieldCheck } from "lucide-react";
 import { AdminSection } from "../components/AdminSection.jsx";
-import { DocPreview } from "../components/DocPreview.jsx";
 import { RejectReasonModal } from "../components/RejectReasonModal.jsx";
+import { getToken } from "../../../lib/authStorage.js";
 
-const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
-const authHeader = () => ({
-  Authorization: `Bearer ${localStorage.getItem("token")}`,
+const authHeader = () => ({ Authorization: `Bearer ${getToken()}` });
+
+// Map an AdminKycResponseDTO row to the shape this page renders.
+const toView = (r) => ({
+  id: r.customerId, // path param for approve/reject
+  name:
+    `${r.firstName || ""} ${r.lastName || ""}`.trim() ||
+    `Customer #${r.customerId}`,
+  email: r.email,
+  phone: r.phoneNumber,
+  dl: r.drivingLicenseNumber,
+  idType: r.idType,
+  idNumber: r.idNumber,
+  idFileUrl: r.idUploadUrl, // storage object key
+  dlFileUrl: r.drivingLicenseUrl, // storage object key (note: admin DTO uses "License", KYC submit uses "Licence")
+  submittedAt: r.createdAt || r.updatedAt,
 });
 
 export function KycReviewPage({ onCountChange }) {
   const [rows, setRows] = useState([]);
-  const [preview, setPreview] = useState(null);
   const [rejecting, setRejecting] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadErr, setLoadErr] = useState("");
+  const [docErr, setDocErr] = useState("");
+
+  // Fetch a short-lived presigned URL for a stored object key, then open it in a new tab.
+  const viewDoc = async (objectName) => {
+    if (!objectName) {
+      setDocErr("No document on file.");
+      return;
+    }
+    setDocErr("");
+    try {
+      const res = await axios.get(
+        `/api/v1/admin/customers/storage/download-url`,
+        { params: { objectName }, headers: authHeader() },
+      );
+      const url = res.data?.downloadUrl;
+      if (url) window.open(url, "_blank", "noopener,noreferrer");
+      else setDocErr("Could not open document.");
+    } catch {
+      setDocErr("Could not open document.");
+    }
+  };
 
   const load = () => {
     setLoading(true);
     setLoadErr("");
-    // NOTE: Customer Service isn't built yet — this will fail until
-    // /customer-service/customer/kyc/pending exists on your backend.
     axios
-      .get(`/customer-service/customer/kyc/pending`, { headers: authHeader() })
+      .get(`/api/v1/admin/kyc/pending`, { headers: authHeader() })
       .then((res) => {
-        setRows(res.data);
-        onCountChange?.(res.data.length);
+        const view = (res.data || []).map(toView);
+        setRows(view);
+        onCountChange?.(view.length);
       })
       .catch((err) => {
         setLoadErr(
           err.response?.status === 403
-            ? "Not authorized to view KYC submissions (or the backend endpoint isn't built yet)."
+            ? "Not authorized — this account isn't an admin."
             : "Could not load pending submissions.",
         );
       })
@@ -42,16 +74,16 @@ export function KycReviewPage({ onCountChange }) {
   const approve = (id) =>
     axios
       .put(
-        `/customer-service/customer/${id}/verify`,
+        `/api/v1/admin/kyc/customers/${id}/approve`,
         {},
         { headers: authHeader() },
       )
       .then(load);
-  const reject = (id, reason) =>
+  const reject = (id, rejectionReason) =>
     axios
       .put(
-        `/customer-service/customer/${id}/reject`,
-        { reason },
+        `/api/v1/admin/kyc/customers/${id}/reject`,
+        { rejectionReason },
         { headers: authHeader() },
       )
       .then(() => {
@@ -64,6 +96,11 @@ export function KycReviewPage({ onCountChange }) {
       {loadErr && (
         <p className="text-sm font-semibold" style={{ color: "#c0392b" }}>
           {loadErr}
+        </p>
+      )}
+      {docErr && (
+        <p className="mb-2 text-sm font-semibold" style={{ color: "#c0392b" }}>
+          {docErr}
         </p>
       )}
       {loading && (
@@ -90,29 +127,13 @@ export function KycReviewPage({ onCountChange }) {
             </div>
             <div className="flex shrink-0 items-center gap-2">
               <button
-                onClick={() =>
-                  setPreview({
-                    type: "Driving Licence",
-                    file: r.dlFileUrl,
-                    kind: "image",
-                    size: "—",
-                    uploaded: r.submittedAt,
-                  })
-                }
+                onClick={() => viewDoc(r.dlFileUrl)}
                 className="br-ghost rounded-lg px-3 py-1.5 text-xs font-semibold"
               >
                 View DL
               </button>
               <button
-                onClick={() =>
-                  setPreview({
-                    type: r.idType,
-                    file: r.idFileUrl,
-                    kind: "image",
-                    size: "—",
-                    uploaded: r.submittedAt,
-                  })
-                }
+                onClick={() => viewDoc(r.idFileUrl)}
                 className="br-ghost rounded-lg px-3 py-1.5 text-xs font-semibold"
               >
                 View ID
@@ -138,7 +159,6 @@ export function KycReviewPage({ onCountChange }) {
           </div>
         ))}
       </div>
-      {preview && <DocPreview doc={preview} onClose={() => setPreview(null)} />}
       {rejecting && (
         <RejectReasonModal
           kind="identity"

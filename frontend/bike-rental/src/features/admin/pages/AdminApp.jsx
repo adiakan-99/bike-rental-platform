@@ -4,6 +4,8 @@
 import { useEffect, useState } from "react";
 import partnerApi from "../../../api/partnerApi";
 
+import axios from "axios";
+import { getToken } from "../../../lib/authStorage.js";
 import {
   Bike,
   Briefcase,
@@ -144,6 +146,7 @@ export function AdminApp({
       setFlash(err.response?.data?.message || "Could not submit the decision.");
     }
   };
+
   const decideBike = async (id, action, reason) => {
     const b = pBikes.find((x) => x.id === id);
     try {
@@ -155,6 +158,69 @@ export function AdminApp({
       setFlash(err.userMessage || "Could not submit the decision.");
     }
   };
+
+  // Real customers from Admin Service — includes Auth identity + accountStatus.
+  const [custRows, setCustRows] = useState([]);
+  const [custLoading, setCustLoading] = useState(true);
+  const [custErr, setCustErr] = useState("");
+  const loadCustomers = () => {
+    setCustLoading(true);
+    setCustErr("");
+    axios
+      .get(`/api/v1/admin/customers`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      })
+      .then((res) =>
+        setCustRows(
+          (res.data || []).map((c) => ({
+            id: c.userId ?? c.customerId,
+            customerId: c.customerId,
+            name:
+              `${c.firstName || ""} ${c.lastName || ""}`.trim() ||
+              `Customer #${c.customerId}`,
+            email: c.email && c.email !== "N/A" ? c.email : "—",
+            phone:
+              c.phoneNumber && c.phoneNumber !== "N/A" ? c.phoneNumber : "—",
+            city: c.city || "—",
+            joined: c.createdAt
+              ? new Date(c.createdAt).toLocaleDateString("en-IN", {
+                  month: "short",
+                  year: "numeric",
+                })
+              : "—",
+            rentals: c.rentals ?? 0,
+            blocked: c.accountStatus === "BLOCKED",
+          })),
+        ),
+      )
+      .catch((e) =>
+        setCustErr(
+          e.response?.status === 403
+            ? "Not authorized to view customers."
+            : "Could not load customers.",
+        ),
+      )
+      .finally(() => setCustLoading(false));
+  };
+  useEffect(() => {
+    loadCustomers();
+  }, []);
+  const blockCustomer = (row) => {
+    const action = row.blocked ? "unblock" : "block";
+    return axios
+      .put(
+        `/api/v1/admin/customers/${row.id}/${action}`,
+        {},
+        { headers: { Authorization: `Bearer ${getToken()}` } },
+      )
+      .then(() => {
+        setFlash(`${row.name} ${row.blocked ? "unblocked" : "blocked"}.`);
+        loadCustomers();
+      })
+      .catch(() => setFlash("Could not update customer status."));
+  };
+
+  // Rejections route through a reason-capture modal first.
   // Rejections route through a reason-capture modal first.
   const [rejectTarget, setRejectTarget] = useState(null); // { kind, id, name }
   const askRejectDealer = (id) => {
@@ -737,28 +803,32 @@ export function AdminApp({
             );
           })()}
 
-        {/* Customers — details + block */}
+        {/* Customers — details + block (real data from /api/v1/admin/customers) */}
         {tab === "customers" &&
           (() => {
             const cities = [
               "All",
-              ...new Set(CUSTOMERS_SEED.map((c) => c.city)),
+              ...new Set(
+                custRows.map((c) => c.city).filter((x) => x && x !== "—"),
+              ),
             ];
-            const list = CUSTOMERS_SEED.filter((c) => {
-              const hay =
-                `${c.name} ${c.email} ${c.phone} ${c.city}`.toLowerCase();
-              if (fC.q && !hay.includes(fC.q.toLowerCase())) return false;
-              if (fC.city !== "All" && c.city !== fC.city) return false;
-              if (fC.status === "Active" && blockedC.has(c.id)) return false;
-              if (fC.status === "Blocked" && !blockedC.has(c.id)) return false;
-              return true;
-            }).sort((a, b) =>
-              fC.sort === "rentals"
-                ? b.rentals - a.rentals
-                : fC.sort === "recent"
-                  ? b.id - a.id
-                  : a.name.localeCompare(b.name),
-            );
+            const list = custRows
+              .filter((c) => {
+                const hay =
+                  `${c.name} ${c.email} ${c.phone} ${c.city}`.toLowerCase();
+                if (fC.q && !hay.includes(fC.q.toLowerCase())) return false;
+                if (fC.city !== "All" && c.city !== fC.city) return false;
+                if (fC.status === "Active" && c.blocked) return false;
+                if (fC.status === "Blocked" && !c.blocked) return false;
+                return true;
+              })
+              .sort((a, b) =>
+                fC.sort === "rentals"
+                  ? b.rentals - a.rentals
+                  : fC.sort === "recent"
+                    ? b.customerId - a.customerId
+                    : a.name.localeCompare(b.name),
+              );
             return (
               <>
                 <h2 className="br-display mb-4 text-lg font-bold">

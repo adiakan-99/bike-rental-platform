@@ -21,7 +21,6 @@ import com.bikerental.auth_service.dto.UpdateProfileRequestDTO;
 import com.bikerental.auth_service.dto.UpdateProfileResponseDTO;
 import com.bikerental.auth_service.dto.UserProfileResponse;
 import com.bikerental.auth_service.security.CustomUserDetails;
-import com.bikerental.auth_service.security.JwtUser;
 import com.bikerental.auth_service.service.AuthenticationService;
 import com.bikerental.auth_service.service.CaptchaServiceImpl;
 import com.bikerental.auth_service.service.UserService;

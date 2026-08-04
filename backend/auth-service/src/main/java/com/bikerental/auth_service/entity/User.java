@@ -8,8 +8,6 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import com.bikerental.auth_service.enums.AccountStatus;
 import com.bikerental.auth_service.enums.Gender;
-import com.bikerental.auth_service.enums.KycStatus;
-import com.bikerental.auth_service.enums.PartnerStatus;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

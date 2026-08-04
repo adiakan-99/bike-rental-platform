@@ -11,8 +11,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.bikerental.customer_service.dto.CustomerRequestDTO;
-import com.bikerental.customer_service.dto.CustomerResponseDTO;
+import com.bikerental.customer_service.customer.DTO.CustomerRequestDTO;
+import com.bikerental.customer_service.customer.DTO.CustomerResponseDTO;
 import com.bikerental.customer_service.security.JwtUser;
 import com.bikerental.customer_service.service.CustomerService;
 
