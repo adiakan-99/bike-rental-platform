@@ -1,23 +1,27 @@
 // AUTO-EXTRACTED (verbatim) from BikeRentalSite_optimisedUI.jsx — do not edit logic.
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { getBike, getBikes } from "./lib/bikeRegistry.js";
-import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { COMPARE_MAX, DISPUTE_WINDOW_HOURS } from "./config";
 import { MONTHS, ROLE } from "./constants";
 import { CompareTray } from "./features/compare/components";
 import { accountStatusMessage, isSuspended, kycOk } from "./lib/access.js";
-import { getToken, clearAuth } from "./lib/authStorage.js";
-import {
-  BIKES,
-  MY_FLEET_SEED,
-  PENDING_BIKES_SEED,
-  PENDING_DEALERS_SEED,
-  makeRentals,
-} from "./mock";
+import { getToken, clearAuth } from "./lib/AuthStorage.js";
+import { BIKES, MY_FLEET_SEED, makeRentals } from "./mock";
 import { AppRoutes } from "./routes";
 import { useAuth } from "./store";
 import { useMyFleet } from "./features/dealer/hooks";
 import { Footer, KycBanner, Navbar, Styles, Toast } from "./ui";
+import { createBikeListing, updateBikeListing } from "./api/bikes.js";
+import {
+  fleetDtoToListing,
+  formToListingDto,
+  formToOperationalDto,
+} from "./lib/adapters/bike.js";
+import { usePendingBikes } from "./features/admin/hooks/usePendingBikes.js";
+
+import partnerApi from "./api/partnerApi";
+
 
 const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
 
@@ -30,7 +34,7 @@ export default function App() {
     endDate: "2026-07-14",
     endTime: "18:00",
   });
-  const [selectedBike, setSelectedBike] = useState(BIKES[0]);
+  const [selectedBike, setSelectedBike] = useState(null);
   const [selectedDealer, setSelectedDealer] = useState(null);
   const { session, setSession, users, setUsers } = useAuth();
   // Detailed profile fields (KYC, address, business, docs) keyed by userId. The `users`
@@ -225,11 +229,12 @@ export default function App() {
     setPortalTab({ tab, n: Date.now() });
   };
 
-  //changed
-  // const toggleWish = (id) => {
-  //   const bike = BIKES.find((b) => b.id === id);
+  const goPartnerProfile = () => go("partnerProfile");
+  const goPartnerOnboard = () => go("partnerOnboard");
+  const goAdminPartners = () => go("adminPartners");
+
   const toggleWish = (id) => {
-  const bike = getBike(id);
+    const bike = getBike(id);
 
     const next = new Set(wishlist);
     const removing = next.has(id);
@@ -243,7 +248,7 @@ export default function App() {
         removing ? "info" : "success",
       );
   };
-const wishlistBikes = getBikes(wishlist);
+  const wishlistBikes = getBikes(wishlist);
   const [toast, setToast] = useState(null);
   const [aboutSection, setAboutSection] = useState(null);
   // Admin is intentionally NOT linked from the public site.
@@ -291,7 +296,7 @@ const wishlistBikes = getBikes(wishlist);
   // NOTE: decide the outcome outside the state updater — calling setState (notify)
   // inside an updater is a side effect React may double-invoke or drop.
   const toggleCompare = (id) => {
-      //changed
+    //changed
     const bike = getBike(id);
     const next = new Set(compare);
     if (next.has(id)) {
@@ -315,42 +320,171 @@ const wishlistBikes = getBikes(wishlist);
         : `${bike.name} added to compare (${next.size}/${COMPARE_MAX})`,
     );
   };
-  //changed
-const compareBikes = getBikes(compare);
-  const [pDealers, setPDealers] = useState(PENDING_DEALERS_SEED);
-  const [pBikes, setPBikes] = useState(PENDING_BIKES_SEED);
-  // supply side: partner registrations and bike listings feed the admin approval queues
-  const submitPartner = (form) =>
-    setPDealers((prev) => [{ ...form, id: Date.now() }, ...prev]);
+  // const compareBikes = BIKES.filter((b) => compare.has(b.id));
 
-  // --- TEMPORARY UNBLOCK HACK ---
-  // Unblocks partner login until GET /api/v1/partners/me is integrated in AuthContext
-  if (session && session.roles?.includes("PARTNER") && session.approvalStatus !== "APPROVED") {
-    setSession((s) => ({ ...s, approvalStatus: "APPROVED" }));
-  }
-  // const [myListings, setMyListings] = useState(MY_FLEET_SEED);
-  const {
-  listings: myListings,
-  loading: fleetLoading,
-  error: fleetError,
-  refresh: refreshFleet,
-  setStatus: setBikeStatus,
-  remove: deleteListing,
-} = useMyFleet({ enabled: session?.roles?.includes("PARTNER") });
-  // Editing an approved listing sends it back through review — same as a new submission.
-  const editListing = (id, patch) =>
-    setMyListings((prev) =>
-      prev.map((l) =>
-        l.id === id
-          ? {
-              ...l,
-              ...patch,
-              status: l.status === "Draft" ? "Draft" : "Pending approval",
-              note: undefined,
-            }
-          : l,
+  // change To this:
+  const compareBikes = getBikes(compare);
+
+  const [pDealers, setPDealers] = useState([]);
+
+  const loadPendingPartners = useCallback(async () => {
+    try {
+      const { data } = await partnerApi.admin.getPending(0, 50);
+      setPDealers(
+        (data.content ?? []).map((p) => ({
+          id: p.partnerId,
+          name: p.ownerName,
+          business: p.businessName || p.ownerName,
+          city: p.city,
+          area: p.city,
+          email: p.email,
+          phone: p.contactPhone,
+          type:
+            p.sellerType === "COMMERCIAL_DEALER" ? "Business" : "Individual",
+          date: p.createdAt
+            ? new Date(p.createdAt).toLocaleDateString("en-IN", {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+              })
+            : "",
+          fleet: 0,
+          complaints: [],
+        })),
+      );
+    } catch {
+      // leave the list empty — the panel shows its own empty state
+    }
+  }, []);
+
+  useEffect(() => {
+    if (session?.roles?.includes(ROLE.ADMIN)) loadPendingPartners();
+  }, [session, loadPendingPartners]);
+
+  // const [pBikes, setPBikes] = useState(PENDING_BIKES_SEED);
+  const { rows: pBikes, decide: handleDecideBike } = usePendingBikes({
+  enabled: !!session?.roles?.includes("ADMIN"),
+});
+  // supply side: partner registrations and bike listings feed the admin approval queues
+  const submitPartner = async (form) => {
+    const nz = (s) => (s && String(s).trim() ? String(s).trim() : null);
+    const isBiz = form.ownerType === "Business";
+
+    const payload = {
+      sellerType: isBiz ? "COMMERCIAL_DEALER" : "INDIVIDUAL",
+      ownerName: nz(form.name),
+      alternateEmail: nz(form.altEmail),
+      alternatePhoneNumber: nz(form.altPhone),
+      panNumber: nz(form.pan),
+      contactPhone: nz(form.phone),
+      addressLine1: nz(form.addr1),
+      addressLine2: nz(form.area),
+      city: nz(form.city),
+      state: nz(form.state),
+      pincode: nz(form.pincode),
+      businessName: isBiz ? nz(form.business) : null,
+      tradeName: isBiz ? nz(form.tradeName) : null,
+      gstNumber: isBiz ? nz(form.gstin) : null,
+      businessType: isBiz ? nz(form.type) : null,
+      yearOfEstablishment: nz(form.since),
+      udyamNumber: isBiz ? nz(form.udyam) : null,
+      signatoryName: isBiz ? nz(form.name) : null,
+      signatoryDesignation: isBiz ? nz(form.signatoryDesignation) : null,
+      licenseNumber: nz(form.rmcNo),
+      issuingAuthority: nz(form.rmcAuthority),
+      licenseValidFrom: nz(form.rmcFrom),
+      licenseValidTo: nz(form.rmcTo),
+      payoutAccount: {
+        accountHolder: nz(form.accHolder),
+        accountNumber: nz(form.accNo),
+        ifsc: nz(form.ifsc),
+        bankName: nz(form.bankName),
+      },
+      documents: Object.entries(form.documents || {}).map(
+        ([docType, fileUrl]) => ({
+          docType,
+          fileUrl,
+        }),
       ),
-    );
+    };
+
+    try {
+      const { data } = await partnerApi.onboardPartner(payload);
+      setPDealers((prev) => [{ ...form, id: data.partnerId }, ...prev]);
+      notify("Partner application submitted", "success");
+    } catch (err) {
+      console.error("Partner onboarding failed:", err.response?.data || err);
+      notify(err.response?.data?.message || "Submission failed", "error");
+    }
+  };
+
+  //changed
+  const {
+    listings: myListings,
+    setListings: setMyListings,
+    loading: fleetLoading,
+    error: fleetError,
+    refresh: refreshFleet,
+    setStatus: setBikeStatus,
+    remove: deleteListing,
+    patchOperational,
+  } = useMyFleet({ enabled: !!session?.roles?.includes("PARTNER") });
+
+  // Editing an approved listing sends it back through review — same as a new submission.
+  // const editListing = (id, patch) =>
+  //   setMyListings((prev) =>
+  //     prev.map((l) =>
+  //       l.id === id
+  //         ? {
+  //             ...l,
+  //             ...patch,
+  //             status: l.status === "Draft" ? "Draft" : "Pending approval",
+  //             note: undefined,
+  //           }
+  //         : l,
+  //     ),
+  //   );
+  const editListing = async (id, form) => {
+    // Determine if this update is purely pricing/operational or requires a full document re-review
+    const existingListing = myListings.find((l) => l.id === id);
+    const priceOnly =
+      !form._photoUrls?.length &&
+      !form._certUrls?.rc &&
+      !form._certUrls?.puc &&
+      form.reg === existingListing?.reg;
+
+    try {
+      const saved = priceOnly
+        ? await patchOperational(id, formToOperationalDto(form))
+        : fleetDtoToListing(
+            await updateBikeListing(
+              id,
+              formToListingDto(form, {
+                photoUrls: form._photoUrls,
+                certUrls: form._certUrls,
+              }),
+            ),
+          );
+
+      // Update the dealer's local list state with the response
+      setMyListings((prev) => prev.map((l) => (l.id === id ? saved : l)));
+
+      // Show appropriate notification message
+      if (typeof notify === "function") {
+        notify(
+          priceOnly ? "Pricing updated" : "Sent back for review",
+          "success",
+        );
+      }
+    } catch (e) {
+      if (typeof notify === "function") {
+        notify(e.userMessage || "Update failed", "error");
+      } else {
+        console.error("Edit listing error:", e);
+      }
+    }
+  };
+
   const setListingStatus = (id, status, patch = {}) =>
     setMyListings((prev) =>
       prev.map((l) =>
@@ -365,31 +499,57 @@ const compareBikes = getBikes(compare);
           : l,
       ),
     );
-  const submitListing = (listing) => {
-    setMyListings((prev) => [
-      { ...listing, id: `L${Date.now()}`, status: "Pending approval" },
-      ...prev,
-    ]);
-    setPBikes((prev) => [
-      {
-        id: Date.now(),
-        name: listing.name,
-        mf: listing.mf,
-        owner: "Apex Moto Rentals",
-        type: "Business",
-        reg: listing.reg,
-        year: listing.year,
-        docs: ["RC book", "Insurance"],
-        cat: listing.cat,
-        cc: Number(listing.cc) || 0,
-        price: Number(listing.price) || 0,
-        date: `${new Date().getDate()} ${MONTHS[new Date().getMonth()]} ${new Date().getFullYear()}`,
-      },
-      ...prev,
-    ]);
-  };
+  // const submitListing = (listing) => {
+  //   setMyListings((prev) => [
+  //     { ...listing, id: `L${Date.now()}`, status: "Pending approval" },
+  //     ...prev,
+  //   ]);
+  //   setPBikes((prev) => [
+  //     {
+  //       id: Date.now(),
+  //       name: listing.name,
+  //       mf: listing.mf,
+  //       owner: "Apex Moto Rentals",
+  //       type: "Business",
+  //       reg: listing.reg,
+  //       year: listing.year,
+  //       docs: ["RC book", "Insurance"],
+  //       cat: listing.cat,
+  //       cc: Number(listing.cc) || 0,
+  //       price: Number(listing.price) || 0,
+  //       date: `${new Date().getDate()} ${MONTHS[new Date().getMonth()]} ${new Date().getFullYear()}`,
+  //     },
+  //     ...prev,
+  //   ]);
+  // };
 
   // --- deposit settlement mutations (mirror the DB transitions) ---
+  const submitListing = async (listing) => {
+    try {
+      // 1. Transform form values and uploaded asset URLs into the DTO shape
+      const dto = formToListingDto(listing, {
+        photoUrls: listing._photoUrls,
+        certUrls: listing._certUrls,
+      });
+
+      // 2. Call real backend API
+      const saved = await createBikeListing(dto);
+
+      // 3. Update dealer's local fleet state with the converted saved response
+      setMyListings((prev) => [fleetDtoToListing(saved), ...prev]);
+
+      // 4. Show success toast notification (if your notify helper is in scope)
+      if (typeof notify === "function") {
+        notify("Listing submitted for review", "success");
+      }
+    } catch (e) {
+      if (typeof notify === "function") {
+        notify(e.userMessage || "Couldn't submit the listing", "error");
+      } else {
+        console.error("Submit listing error:", e);
+      }
+    }
+  };
   const updateDeduction = (rentalId, dedId, patch) =>
     setRentals((prev) =>
       prev.map((r) =>
@@ -594,7 +754,20 @@ const compareBikes = getBikes(compare);
       }
       fn(...args);
     };
-  const afterAuth = (sess) => {
+  const afterAuth = async (sess) => {
+    if (sess.roles?.includes(ROLE.PARTNER)) {
+      try {
+        const { data } = await partnerApi.getMyProfile();
+        sess = {
+          ...sess,
+          partnerId: data.partnerId,
+          approvalStatus: data.approvalStatus,
+        };
+      } catch {
+        // No partner record yet — leave the defaults in place.
+      }
+    }
+
     setSession(sess);
     // Any non-ACTIVE account gets its history and nothing else — not even the home search.
     if (isSuspended(sess)) {
@@ -670,17 +843,15 @@ const compareBikes = getBikes(compare);
   // Prompt riders to finish KYC. Shown for a logged-in, active CUSTOMER whose KYC
   // isn't VERIFIED — hidden on the auth/KYC screens themselves and while suspended
   // (a suspended account already gets its own banner).
-  const showKycBanner =
-    !!session &&
-    !isSuspended(session) &&
-    session.roles?.includes(ROLE.CUSTOMER) &&
-    session.kycStatus !== "VERIFIED" &&
-    !["login", "register", "identity"].includes(page);
+  const showKycBanner = false;
 
   return (
     <div className="br-root min-h-screen pt-16">
       <Styles />
       <Navbar
+        onPartnerProfile={goPartnerProfile}
+        onPartnerOnboard={goPartnerOnboard}
+        onAdminPartners={goAdminPartners}
         onLogo={goHome}
         onLogin={() => go("login")}
         onRegister={() => go("register")}
@@ -737,6 +908,9 @@ const compareBikes = getBikes(compare);
           goDetails,
           goHome,
           goResults,
+          goAdminPartners,
+          goPartnerOnboard,
+          goPartnerProfile,
           myListings,
           notify,
           openRental,
@@ -746,6 +920,7 @@ const compareBikes = getBikes(compare);
           pBikes,
           pDealers,
           page,
+          pendingBook,
           partnerRentals,
           portalTab,
           recordIdentity,
@@ -761,7 +936,6 @@ const compareBikes = getBikes(compare);
           setBooking,
           setCompare,
           setListingStatus,
-          setPBikes,
           setPDealers,
           setSession,
           socialAuth,

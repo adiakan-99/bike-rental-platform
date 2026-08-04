@@ -19,3 +19,4 @@ export const getBikes = (ids) =>
   [...ids].map((id) => registry.get(id)).filter(Boolean);
 
 export const clearBikeRegistry = () => registry.clear();
+export const findBike = (predicate) => [...registry.values()].find(predicate) || null;

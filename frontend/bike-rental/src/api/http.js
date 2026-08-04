@@ -6,6 +6,8 @@
 //   2. Turns any backend error into a readable `err.userMessage` string,
 //      so components can do `catch (e) { notify(e.userMessage) }`.
 import axios from "axios";
+//added
+import { getToken } from "../lib/Authstorage.js";
 import { BIKE_API } from "../config/api.js";
 
 export const bikeHttp = axios.create({
@@ -14,8 +16,14 @@ export const bikeHttp = axios.create({
 });
 
 // Runs before every request leaves the browser.
+// bikeHttp.interceptors.request.use((config) => {
+//   const token = localStorage.getItem("token");
+//   if (token) config.headers.Authorization = `Bearer ${token}`;
+//   return config;
+// });
+
 bikeHttp.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
+  const token = getToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
@@ -27,11 +35,11 @@ bikeHttp.interceptors.response.use(
   (err) => {
     const status = err.response?.status;
     const body = err.response?.data;
-
     if (status === 401) {
       localStorage.removeItem("token");
+      sessionStorage.removeItem("token");
       localStorage.removeItem("userId");
-      localStorage.removeItem("firstName");
+      sessionStorage.removeItem("userId");
       window.dispatchEvent(new CustomEvent("auth:expired"));
     }
 

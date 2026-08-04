@@ -19,7 +19,7 @@ import {
   normalizeCustomerProfile,
   normalizeKyc,
 } from "../../../lib/session.js";
-import { setAuth } from "../../../lib/authStorage.js";
+import { setAuth } from "../../../lib/Authstorage.js";
 import { DEMO_LOGINS, DEMO_USERS } from "../../../mock";
 import { Field } from "../../../ui";
 import { ForgotPasswordCard, SocialButtons } from "../components";

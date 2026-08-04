@@ -12,7 +12,7 @@ export default defineConfig({
         target: "http://localhost:8080",
         changeOrigin: true,
         secure: false,
-      },
+      },"/storage": { target: "http://localhost:8080", changeOrigin: true, secure: false },
     },
   },
 });

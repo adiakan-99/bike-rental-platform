@@ -39,7 +39,7 @@ services:
     build:
       context: ./backend/auth-service
     ports:
-      - "8081:8080"
+      - "8081:8081"
     networks:
       - bike-rental-network
     environment:
@@ -49,9 +49,9 @@ services:
     build:
       context: ./backend/customer-service
     ports:
-      - "8082:8080"
+      - "8082:8082"
     environment:
-      AUTH_SERVICE_URL: http://auth-service:8080
+      AUTH_SERVICE_URL: http://auth-service:8081
       MINIO_URL: http://minio:9000
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadminpassword
@@ -65,9 +65,9 @@ services:
     build:
       context: ./backend/partner-service
     ports:
-      - "8083:8080"
+      - "8083:8083"
     environment:
-      AUTH_SERVICE_URL: http://auth-service:8080
+      AUTH_SERVICE_URL: http://auth-service:8081
       MINIO_URL: http://minio:9000
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadminpassword
@@ -81,9 +81,11 @@ services:
     build:
       context: ./backend/bike-service
     ports:
-      - "8084:8080"
+      - "8084:8084"
     environment:
-      AUTH_SERVICE_URL: http://auth-service:8080
+      AUTH_SERVICE_URL: http://auth-service:8081
+      PARTNER_SERVICE_URL: http://partner-service:8083
+      BOOKING_SERVICE_URL: http://booking-service:8085
       MINIO_URL: http://minio:9000
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadminpassword

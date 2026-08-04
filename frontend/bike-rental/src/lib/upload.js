@@ -6,7 +6,7 @@
 //
 // Paths are relative on purpose so they go through the Vite dev proxy / API gateway.
 import axios from "axios";
-
+import { getToken } from "../lib/Authstorage.js";
 export const ALLOWED_UPLOAD_TYPES = [
   "image/jpeg",
   "image/jpg",
@@ -24,7 +24,7 @@ export async function uploadDocument({ file, documentType, endpoint }) {
     err.userMessage = err.message;
     throw err;
   }
-  const token = localStorage.getItem("token");
+  const token = getToken();
   // 1) ask the backend for a pre-signed PUT URL + the permanent fileUrl
   const { data } = await axios.post(
     endpoint,

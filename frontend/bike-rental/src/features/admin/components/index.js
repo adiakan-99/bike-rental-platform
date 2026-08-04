@@ -6,3 +6,4 @@ export * from "./DealerDetailsAdmin.jsx";
 export * from "./DisputeCard.jsx";
 export * from "./DocPreview.jsx";
 export * from "./RejectReasonModal.jsx";
+export { PartnerReviewPanel } from "./PartnerReviewPanel";
