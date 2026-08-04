@@ -162,11 +162,12 @@ export function AdminApp({
   useEffect(() => {
     loadCustomers();
   }, []);
-  const blockCustomer = (row) =>
-    axios
+  const blockCustomer = (row) => {
+    const action = row.blocked ? "unblock" : "block";
+    return axios
       .put(
-        `/api/v1/internal/users/${row.id}/status`,
-        { accountStatus: row.blocked ? "ACTIVE" : "BLOCKED" },
+        `/api/v1/admin/customers/${row.id}/${action}`,
+        {},
         { headers: { Authorization: `Bearer ${getToken()}` } },
       )
       .then(() => {
@@ -174,6 +175,7 @@ export function AdminApp({
         loadCustomers();
       })
       .catch(() => setFlash("Could not update customer status."));
+  };
   const [fB, setFB] = useState({
     q: "",
     cat: "All",

@@ -3,6 +3,7 @@ package com.bikerental.customer_service.service;
 import java.util.List;
 
 import com.bikerental.customer_service.customer.DTO.CreateCustomerRequest;
+import com.bikerental.customer_service.customer.DTO.CustomerDashboardStatsDTO;
 import com.bikerental.customer_service.customer.DTO.CustomerRequestDTO;
 import com.bikerental.customer_service.customer.DTO.CustomerResponseDTO;
 
@@ -23,4 +24,7 @@ public interface CustomerService {
 	CustomerResponseDTO getCustomerById(Integer customerId);
 
 	CustomerResponseDTO getCustomerByUserId(Integer userId);
+
+	CustomerDashboardStatsDTO getDashboardStatus();
+
 }

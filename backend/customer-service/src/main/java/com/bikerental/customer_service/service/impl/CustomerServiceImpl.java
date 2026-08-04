@@ -6,11 +6,15 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 
 import com.bikerental.customer_service.customer.DTO.CreateCustomerRequest;
+import com.bikerental.customer_service.customer.DTO.CustomerDashboardStatsDTO;
 import com.bikerental.customer_service.customer.DTO.CustomerRequestDTO;
 import com.bikerental.customer_service.customer.DTO.CustomerResponseDTO;
 import com.bikerental.customer_service.entity.Customer;
+import com.bikerental.customer_service.enums.AccountStatus;
+import com.bikerental.customer_service.enums.KycStatus;
 import com.bikerental.customer_service.exception.CustomerAlreadyExistsException;
 import com.bikerental.customer_service.exception.CustomerNotFoundException;
+import com.bikerental.customer_service.repository.CustomerKycRepository;
 import com.bikerental.customer_service.repository.CustomerRepository;
 import com.bikerental.customer_service.service.CustomerService;
 
@@ -21,6 +25,8 @@ import lombok.RequiredArgsConstructor;
 public class CustomerServiceImpl implements CustomerService {
 
 	private final CustomerRepository customerRepository;
+
+	private final CustomerKycRepository customerKycRepository;
 
 	@Override
 	public void createCustomer(CreateCustomerRequest request) {
@@ -124,5 +130,14 @@ public class CustomerServiceImpl implements CustomerService {
 				.orElseThrow(() -> new CustomerNotFoundException(userId));
 
 		return mapToDTO(customer);
+	}
+
+	@Override
+	public CustomerDashboardStatsDTO getDashboardStatus() {
+		// TODO Auto-generated method stub
+		return new CustomerDashboardStatsDTO(customerRepository.count(),
+				customerKycRepository.countByKycStatus(KycStatus.SUBMITTED),
+				customerKycRepository.countByKycStatus(KycStatus.VERIFIED),
+				customerKycRepository.countByKycStatus(KycStatus.REJECTED));
 	}
 }

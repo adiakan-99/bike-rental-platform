@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.bikerental.customer_service.customer.DTO.CreateCustomerRequest;
+import com.bikerental.customer_service.customer.DTO.CustomerDashboardStatsDTO;
 import com.bikerental.customer_service.customer.DTO.CustomerKycResponseDTO;
 import com.bikerental.customer_service.customer.DTO.CustomerResponseDTO;
 import com.bikerental.customer_service.customer.DTO.RejectKycRequestDTO;
@@ -77,5 +78,11 @@ public class InternalCustomerController {
 
 		return ResponseEntity.ok(internalCustomerService.getAllCustomers());
 
+	}
+
+	@GetMapping("/dashboard/stats")
+	public ResponseEntity<CustomerDashboardStatsDTO> getDashboardStats() {
+
+		return ResponseEntity.ok(customerService.getDashboardStatus());
 	}
 }

@@ -19,4 +19,6 @@ public interface CustomerKycRepository
 	boolean existsByIdNumber(String idNumber);
 
 	List<CustomerKyc> findByKycStatus(KycStatus kycStatus);
+
+	long countByKycStatus(KycStatus kycStatus);
 }

@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 
 import com.bikerental.admin_service.admin.DTO.AdminCustomerDTO;
 import com.bikerental.admin_service.admin.DTO.AdminCustomerKycResponseDTO;
+import com.bikerental.admin_service.admin.DTO.CustomerDashboardStatsDTO;
 import com.bikerental.admin_service.admin.DTO.RejectKycRequestDTO;
 import com.bikerental.admin_service.config.FeignClientConfig;
 
@@ -29,5 +30,7 @@ public interface CustomerServiceClient {
 	@GetMapping("/api/v1/internal/customers/")
 	List<AdminCustomerDTO> getAllCustomers();
 	
+	@GetMapping("/api/v1/internal/customers/dashboard/stats")
+	CustomerDashboardStatsDTO getDashboardStats();
 
 }

@@ -14,7 +14,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.bikerental.auth_service.dto.AddRoleRequest;
 import com.bikerental.auth_service.dto.UpdateAccountStatusRequest;
+import com.bikerental.auth_service.dto.UserDashboardStatsDTO;
 import com.bikerental.auth_service.dto.UserProfileResponse;
+import com.bikerental.auth_service.service.InternalUserService;
 import com.bikerental.auth_service.service.UserService;
 
 import jakarta.validation.Valid;
@@ -26,6 +28,8 @@ import lombok.RequiredArgsConstructor;
 public class InternalController {
 
 	private final UserService userService;
+
+	private final InternalUserService internalUserService;
 
 	@GetMapping("/{id}")
 	public ResponseEntity<UserProfileResponse> getUserById(
@@ -56,4 +60,11 @@ public class InternalController {
 		return ResponseEntity
 				.ok(Map.of("message", "Account status updated successfully"));
 	}
+
+	@GetMapping("/dashboard/stats")
+	public ResponseEntity<UserDashboardStatsDTO> getDashboardStatus() {
+
+		return ResponseEntity.ok(internalUserService.getDashboardStats());
+	}
+
 }

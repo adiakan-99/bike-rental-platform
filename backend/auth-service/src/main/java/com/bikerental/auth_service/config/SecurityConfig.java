@@ -45,12 +45,10 @@ public class SecurityConfig {
 								"/api/v1/auth/reset-password",
 								"/v3/api-docs/**", "/swagger-ui/**",
 								"/swagger-ui.html")
-						.permitAll().requestMatchers("/api/v1/auth/me")
-						.authenticated()
-						.requestMatchers("/api/v1/internal/users/**").permitAll()
-						.requestMatchers("/api/v1/auth/password")
-						.authenticated().requestMatchers("/api/v1/auth/me")
-						.authenticated()
+						.permitAll()
+						.requestMatchers("/api/v1/auth/me").authenticated()
+						.requestMatchers("/api/v1/internal/**").permitAll()
+						.requestMatchers("/api/v1/auth/password").authenticated()
 
 						.anyRequest().authenticated())
 				.addFilterBefore(jwtAuthenticationFilter,

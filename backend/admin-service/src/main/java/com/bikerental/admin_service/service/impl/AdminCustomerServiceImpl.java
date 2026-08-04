@@ -6,7 +6,8 @@ import org.springframework.stereotype.Service;
 
 import com.bikerental.admin_service.admin.DTO.AdminCustomerDTO;
 import com.bikerental.admin_service.admin.DTO.AdminCustomerResponseDTO;
-import com.bikerental.admin_service.admin.DTO.FileDownloadResponseDTO;
+import com.bikerental.admin_service.admin.DTO.UpdateAccountStatusRequest;
+import com.bikerental.admin_service.admin.DTO.UpdateAccountStatusResponse;
 import com.bikerental.admin_service.admin.DTO.UserResponseDTO;
 import com.bikerental.admin_service.client.AuthServiceClient;
 import com.bikerental.admin_service.client.CustomerServiceClient;
@@ -85,10 +86,35 @@ public class AdminCustomerServiceImpl implements AdminCustomerService {
 	@Override
 	public String getDownloadUrl(String objectName) {
 		// TODO Auto-generated method stub
-		 
+
 		System.out.println("OBJECT Name in admin:" + objectName);
-		
+
 		return storageServiceClient.getDownloadUrl(objectName).getDownloadUrl();
+	}
+
+	@Override
+	public UpdateAccountStatusResponse blockCustomer(Integer userId) {
+
+		UpdateAccountStatusRequest request = new UpdateAccountStatusRequest();
+
+		request.setAccountStatus(AccountStatus.BLOCKED);
+
+		authServiceClient.UpdateAccountStatus(userId, request);
+
+		return new UpdateAccountStatusResponse("Customer Blocked Successfully");
+
+	}
+
+	@Override
+	public UpdateAccountStatusResponse unblockCustomer(Integer userId) {
+		UpdateAccountStatusRequest request = new UpdateAccountStatusRequest();
+
+		request.setAccountStatus(AccountStatus.ACTIVE);
+
+		authServiceClient.UpdateAccountStatus(userId, request);
+
+		return new UpdateAccountStatusResponse(
+				"Customer Un-Blocked Successfully");
 	}
 
 }
