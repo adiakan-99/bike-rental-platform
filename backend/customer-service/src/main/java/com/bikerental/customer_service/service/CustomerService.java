@@ -2,9 +2,9 @@ package com.bikerental.customer_service.service;
 
 import java.util.List;
 
-import com.bikerental.customer_service.dto.CreateCustomerRequest;
-import com.bikerental.customer_service.dto.CustomerRequestDTO;
-import com.bikerental.customer_service.dto.CustomerResponseDTO;
+import com.bikerental.customer_service.customer.DTO.CreateCustomerRequest;
+import com.bikerental.customer_service.customer.DTO.CustomerRequestDTO;
+import com.bikerental.customer_service.customer.DTO.CustomerResponseDTO;
 
 public interface CustomerService {
 

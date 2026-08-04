@@ -1,11 +1,13 @@
 package com.bikerental.customer_service.service.impl;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 
 import org.springframework.stereotype.Service;
 
-import com.bikerental.customer_service.dto.CustomerKycRequestDTO;
-import com.bikerental.customer_service.dto.CustomerKycResponseDTO;
+import com.bikerental.customer_service.customer.DTO.CustomerKycRequestDTO;
+import com.bikerental.customer_service.customer.DTO.CustomerKycResponseDTO;
+import com.bikerental.customer_service.customer.DTO.RejectKycRequestDTO;
 import com.bikerental.customer_service.entity.Customer;
 import com.bikerental.customer_service.entity.CustomerKyc;
 import com.bikerental.customer_service.enums.KycStatus;
@@ -40,7 +42,7 @@ public class CustomerKycServiceImpl implements CustomerKycService {
 		CustomerKyc customerKyc = new CustomerKyc();
 
 		customerKyc.setCustomer(customer);
-		
+
 		mapRequestToCustomerKyc(customerKyc, request);
 
 		OffsetDateTime now = OffsetDateTime.now();
@@ -83,17 +85,19 @@ public class CustomerKycServiceImpl implements CustomerKycService {
 
 		mapRequestToCustomerKyc(customerKyc, request);
 
-		customerKyc.setKycStatus(KycStatus.PENDING);
+		customerKyc.setKycStatus(KycStatus.SUBMITTED);
 
 		customerKyc.setVerifiedBy(null);
 
 		customerKyc.setVerifiedAt(null);
 
+		customerKyc.setRejectionReason(null);
+
 		customerKyc.setUpdatedAt(OffsetDateTime.now());
 
 		CustomerKyc updateKyc = customerKycRepository.save(customerKyc);
 
-		return mapToResponseDTO(customerKyc);
+		return mapToResponseDTO(updateKyc);
 
 	}
 
@@ -124,7 +128,7 @@ public class CustomerKycServiceImpl implements CustomerKycService {
 
 		response.setDrivingLicenseNumber(customerKyc.getDrivingLicenseNumber());
 
-		response.setDrivingLicenceUrl(customerKyc.getDrivingLicenseUrl());
+		response.setDrivingLicenseUrl(customerKyc.getDrivingLicenseUrl());
 
 		response.setLicenseValidTo(customerKyc.getLicenseValidTo());
 
@@ -138,5 +142,7 @@ public class CustomerKycServiceImpl implements CustomerKycService {
 
 		return response;
 	}
+
+	
 
 }

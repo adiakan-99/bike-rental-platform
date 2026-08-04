@@ -1,7 +1,6 @@
 package com.bikerental.auth_service.dto;
 
 import com.bikerental.auth_service.enums.Gender;
-import com.fasterxml.jackson.annotation.JsonProperty;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;

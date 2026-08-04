@@ -40,12 +40,14 @@ public class SecurityConfig {
 				.authorizeHttpRequests(auth -> auth
 						.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 						.requestMatchers("/api/v1/auth/register",
-								"/api/v1/auth/login", "/v3/api-docs/**",
-								"/swagger-ui/**", "/swagger-ui.html")
+								"/api/v1/auth/login",
+								"/api/v1/auth/forgot-password",
+								"/api/v1/auth/reset-password",
+								"/v3/api-docs/**", "/swagger-ui/**",
+								"/swagger-ui.html")
 						.permitAll().requestMatchers("/api/v1/auth/me")
 						.authenticated()
-						.requestMatchers("/api/v1/internal/users/**")
-						.authenticated()
+						.requestMatchers("/api/v1/internal/users/**").permitAll()
 						.requestMatchers("/api/v1/auth/password")
 						.authenticated().requestMatchers("/api/v1/auth/me")
 						.authenticated()

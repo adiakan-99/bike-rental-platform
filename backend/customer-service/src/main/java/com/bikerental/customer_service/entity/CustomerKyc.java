@@ -18,14 +18,12 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.MapsId;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Past;
-import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
@@ -42,7 +40,6 @@ public class CustomerKyc {
 	private Integer kycId;
 
 	@OneToOne(fetch = FetchType.LAZY)
-	@MapsId
 	@JoinColumn(name = "customer_id", nullable = false, unique = true)
 	private Customer customer;
 
@@ -74,7 +71,7 @@ public class CustomerKyc {
 
 	@Enumerated(EnumType.STRING)
 	@Column(name = "kyc_status", nullable = false, length = 20)
-	private KycStatus kycStatus = KycStatus.PENDING;
+	private KycStatus kycStatus = KycStatus.SUBMITTED;
 
 	@Column(name = "verified_by")
 	private Integer verifiedBy;
@@ -89,4 +86,7 @@ public class CustomerKyc {
 	@UpdateTimestamp
 	@Column(name = "updated_at")
 	private OffsetDateTime updatedAt;
+	
+	@Column(name = "rejection_reason", length = 500)
+	private String rejectionReason;
 }

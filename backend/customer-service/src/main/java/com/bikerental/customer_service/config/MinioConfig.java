@@ -32,7 +32,6 @@ public class MinioConfig {
 
 	@Bean(name = "publicMinioClient")
 	public MinioClient publicMinioClient() {
-
 		return MinioClient.builder().endpoint(publicUrl)
 				.credentials(accessKey, secretKey).region("us-east-1").build();
 	}

@@ -5,9 +5,9 @@ import java.util.List;
 
 import org.springframework.stereotype.Service;
 
-import com.bikerental.customer_service.dto.CreateCustomerRequest;
-import com.bikerental.customer_service.dto.CustomerRequestDTO;
-import com.bikerental.customer_service.dto.CustomerResponseDTO;
+import com.bikerental.customer_service.customer.DTO.CreateCustomerRequest;
+import com.bikerental.customer_service.customer.DTO.CustomerRequestDTO;
+import com.bikerental.customer_service.customer.DTO.CustomerResponseDTO;
 import com.bikerental.customer_service.entity.Customer;
 import com.bikerental.customer_service.exception.CustomerAlreadyExistsException;
 import com.bikerental.customer_service.exception.CustomerNotFoundException;

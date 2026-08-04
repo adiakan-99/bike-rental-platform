@@ -1,7 +1,12 @@
 package com.bikerental.partner_service.exceptions;
 
 public class DuplicateResourceException extends RuntimeException {
-    public DuplicateResourceException() {
+    /**
+	 * 
+	 */
+	private static final long serialVersionUID = -1425682387814989374L;
+
+	public DuplicateResourceException() {
     }
 
     public DuplicateResourceException(String message) {

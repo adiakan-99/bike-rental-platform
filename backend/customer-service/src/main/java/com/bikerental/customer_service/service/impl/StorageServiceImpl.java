@@ -6,8 +6,8 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import com.bikerental.customer_service.dto.UploadUrlRequestDTO;
-import com.bikerental.customer_service.dto.UploadUrlResponseDTO;
+import com.bikerental.customer_service.customer.DTO.UploadUrlRequestDTO;
+import com.bikerental.customer_service.customer.DTO.UploadUrlResponseDTO;
 import com.bikerental.customer_service.service.StorageService;
 
 import io.minio.GetPresignedObjectUrlArgs;
