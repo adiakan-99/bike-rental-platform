@@ -3,7 +3,7 @@
 // badgeFor(), and the new {tab === "kyc" && ...} block below. Everything else is unchanged.
 import { useEffect, useState } from "react";
 import partnerApi from "../../../api/partnerApi";
-import { usePendingBikes } from "../hooks";
+
 import {
   Bike,
   Briefcase,
@@ -43,6 +43,8 @@ export function AdminApp({
   onResolveDispute,
   pDealers,
   setPDealers,
+  pBikes,
+  onDecideBike,
   adminAction,
 }) {
   const [reviewBike, setReviewBike] = useState(null); // listing open in the review modal
@@ -142,17 +144,17 @@ export function AdminApp({
       setFlash(err.response?.data?.message || "Could not submit the decision.");
     }
   };
-const decideBike = async (id, action, reason) => {
-  const b = pBikes.find((x) => x.id === id);
-  try {
-    await decidePendingBike(id, action, reason);
-    setFlash(
-      `${b?.name || "Bike"} ${action === "approve" ? "approved" : "rejected"}.`,
-    );
-  } catch (err) {
-    setFlash(err.userMessage || "Could not submit the decision.");
-  }
-};
+  const decideBike = async (id, action, reason) => {
+    const b = pBikes.find((x) => x.id === id);
+    try {
+      await onDecideBike(id, action, reason);
+      setFlash(
+        `${b?.name || "Bike"} ${action === "approve" ? "approved" : "rejected"}.`,
+      );
+    } catch (err) {
+      setFlash(err.userMessage || "Could not submit the decision.");
+    }
+  };
   // Rejections route through a reason-capture modal first.
   const [rejectTarget, setRejectTarget] = useState(null); // { kind, id, name }
   const askRejectDealer = (id) => {

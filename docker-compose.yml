@@ -117,6 +117,7 @@ services:
       - partner-service
       - bike-service
       - booking-service
+      - minio
     networks:
       - bike-rental-network
 

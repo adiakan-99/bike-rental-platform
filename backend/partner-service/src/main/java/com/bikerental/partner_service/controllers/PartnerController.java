@@ -5,6 +5,7 @@ import com.bikerental.partner_service.dto.request.PartnerDocumentUpdateRequestDt
 import com.bikerental.partner_service.dto.request.PartnerPayoutRequestDto;
 import com.bikerental.partner_service.dto.request.PartnerUpdateRequestDto;
 import com.bikerental.partner_service.dto.response.*;
+import com.bikerental.partner_service.repositories.PartnerRepository;
 import com.bikerental.partner_service.services.PartnerServices;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -13,7 +14,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+import java.util.Map;
 
+import java.util.HashMap;
 import java.util.List;
 
 @RestController
@@ -21,6 +24,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class PartnerController {
     private final PartnerServices partnerServices;
+    private final PartnerRepository partnerRepository;
 
     private Integer getAuthenticatedUserId() {
         return (Integer) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -32,8 +36,23 @@ public class PartnerController {
                 .toList();
     }
 
+    @GetMapping("/public/availability")
+    public ResponseEntity<Map<String, Boolean>> checkAvailability(
+            @RequestParam(required = false) String pan,
+            @RequestParam(required = false) String gst) {
+        Map<String, Boolean> result = new HashMap<>();
+        if (pan != null && !pan.isBlank()) {
+            result.put("panAvailable", !partnerRepository.existsByPanNumber(pan.toUpperCase()));
+        }
+        if (gst != null && !gst.isBlank()) {
+            result.put("gstAvailable", !partnerRepository.existsByGstNumber(gst.toUpperCase()));
+        }
+        return ResponseEntity.ok(result);
+    }
+
     @PostMapping("/profile")
-    public ResponseEntity<PartnerCreationResponseDto> onboardPartner(@Valid @RequestBody PartnerCreationRequestDto requestDto) {
+    public ResponseEntity<PartnerCreationResponseDto> onboardPartner(
+            @Valid @RequestBody PartnerCreationRequestDto requestDto) {
         Integer userId = getAuthenticatedUserId();
 
         PartnerCreationResponseDto responseDto = partnerServices.onboardPartner(requestDto, userId);

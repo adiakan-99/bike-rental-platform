@@ -6,8 +6,8 @@ import { COMPARE_MAX, DISPUTE_WINDOW_HOURS } from "./config";
 import { MONTHS, ROLE } from "./constants";
 import { CompareTray } from "./features/compare/components";
 import { accountStatusMessage, isSuspended, kycOk } from "./lib/access.js";
-import { getToken, clearAuth } from "./lib/AuthStorage.js";
-import { BIKES, MY_FLEET_SEED, makeRentals } from "./mock";
+import { getToken, clearAuth } from "./lib/Authstorage.js";
+import { makeRentals } from "./mock";
 import { AppRoutes } from "./routes";
 import { useAuth } from "./store";
 import { useMyFleet } from "./features/dealer/hooks";
@@ -21,7 +21,6 @@ import {
 import { usePendingBikes } from "./features/admin/hooks/usePendingBikes.js";
 
 import partnerApi from "./api/partnerApi";
-
 
 const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
 
@@ -363,8 +362,8 @@ export default function App() {
 
   // const [pBikes, setPBikes] = useState(PENDING_BIKES_SEED);
   const { rows: pBikes, decide: handleDecideBike } = usePendingBikes({
-  enabled: !!session?.roles?.includes("ADMIN"),
-});
+    enabled: !!session?.roles?.includes("ADMIN"),
+  });
   // supply side: partner registrations and bike listings feed the admin approval queues
   const submitPartner = async (form) => {
     const nz = (s) => (s && String(s).trim() ? String(s).trim() : null);
@@ -918,6 +917,7 @@ export default function App() {
           openRentalReport,
           openRentalReview,
           pBikes,
+          onDecideBike: handleDecideBike,
           pDealers,
           page,
           pendingBook,

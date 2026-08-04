@@ -21,7 +21,7 @@ export const partnerApi = {
   getPartnerById: (id) => api.get(`/${id}`),
   getPartnerDocuments: (id) => api.get(`/${id}/documents`),
   getPublicProfile: (id) => api.get(`/public/${id}`),
-
+checkAvailability: (params) => api.get("/public/availability", { params }),
   admin: {
     getPending: (page = 0, size = 10) =>
       api.get("/admin/pending", { params: { page, size } }),

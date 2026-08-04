@@ -21,7 +21,7 @@ import { ReportPage } from "../features/report/pages";
 import { WriteReviewPage } from "../features/review/pages";
 import { WishlistPage } from "../features/wishlist/pages";
 import { isSuspended } from "../lib/access.js";
-// import { BIKES, getDealer } from "../mock";
+import { getDealer } from "../mock";
 import { findBike } from "../lib/bikeRegistry.js";
 import { Guard } from "../ui";
 
@@ -61,10 +61,12 @@ export function AppRoutes({ ctx }) {
     goPartnerProfile,
     myListings,
     notify,
+    onDecideBike,
     openRental,
     openRentalCancel,
     openRentalReport,
     openRentalReview,
+    pBikes,
     pDealers,
     page,
     pendingBook,
@@ -148,7 +150,9 @@ export function AppRoutes({ ctx }) {
           onView={goDetails}
           wishlist={wishlist}
           onWish={toggleWish}
-        onDealer={(d) => goDealer(d, findBike((b) => b.dealer === d.id) || selectedBike)}
+          onDealer={(d) =>
+            goDealer(d, findBike((b) => b.dealer === d.id) || selectedBike)
+          }
         />
       )}
       {page === "register" && (
@@ -344,6 +348,8 @@ export function AppRoutes({ ctx }) {
             onResolveDispute={resolveDispute}
             pDealers={pDealers}
             setPDealers={setPDealers}
+            pBikes={pBikes}
+            onDecideBike={onDecideBike}
             adminAction={adminAction}
           />
         </Guard>

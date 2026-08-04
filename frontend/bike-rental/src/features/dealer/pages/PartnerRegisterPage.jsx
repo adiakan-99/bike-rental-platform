@@ -1,5 +1,5 @@
-// AUTO-EXTRACTED (verbatim) from BikeRentalSite_optimisedUI.jsx — do not edit logic.
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import partnerApi from "../../../api/partnerApi";
 import axios from "axios";
 import { getToken, setAuth } from "../../../lib/Authstorage.js";
 import { Turnstile } from "@marsidev/react-turnstile";
@@ -95,6 +95,35 @@ export function PartnerRegisterPage({ onSubmit, onLogin, onHome, session }) {
   const [captchaToken, setCaptchaToken] = useState("");
   const [authErr, setAuthErr] = useState("");
   const [busy, setBusy] = useState(false);
+  const [taken, setTaken] = useState({});
+  useEffect(() => {
+    const pan = v.pan.trim().toUpperCase();
+    if (!/^[A-Z]{5}\d{4}[A-Z]$/.test(pan)) return;
+    const t = setTimeout(() => {
+      partnerApi
+        .checkAvailability({ pan })
+        .then(({ data }) =>
+          setTaken((s) => ({ ...s, pan: data.panAvailable === false })),
+        )
+        .catch(() => {});
+    }, 500);
+    return () => clearTimeout(t);
+  }, [v.pan]);
+
+  useEffect(() => {
+    if (!isBiz) return;
+    const gst = v.gstin.trim().toUpperCase();
+    if (!/^\d{2}[A-Z]{5}\d{4}[A-Z]\d[Z][A-Z\d]$/.test(gst)) return;
+    const t = setTimeout(() => {
+      partnerApi
+        .checkAvailability({ gst })
+        .then(({ data }) =>
+          setTaken((s) => ({ ...s, gstin: data.gstAvailable === false })),
+        )
+        .catch(() => {});
+    }, 500);
+    return () => clearTimeout(t);
+  }, [v.gstin, isBiz]);
   const set = (k) => (e) => setV((p) => ({ ...p, [k]: e.target.value }));
   // Digits-only (phone/pincode/account) and uppercase-alphanumeric (PAN/GSTIN/IFSC) setters,
   // each hard-capped so a user can't over-type the field.
@@ -184,19 +213,19 @@ export function PartnerRegisterPage({ onSubmit, onLogin, onHome, session }) {
     ? [
         {
           k: "gst",
-          docType: "GST_CERTIFICATE",
+          docType: "GST_CERT",
           label: "GST certificate",
           required: true,
         },
         {
           k: "pan",
-          docType: "PAN_CARD",
+          docType: "PAN",
           label: "Business PAN card",
           required: true,
         },
         {
           k: "incorp",
-          docType: "INCORPORATION_CERTIFICATE",
+          docType: "INCORPORATION",
           label: "Incorporation / Shop & Establishment",
           required: true,
         },
@@ -214,16 +243,16 @@ export function PartnerRegisterPage({ onSubmit, onLogin, onHome, session }) {
         },
         {
           k: "udyam",
-          docType: "UDYAM_CERTIFICATE",
+          docType: "UDYAM",
           label: "Udyam / MSME certificate",
           required: true,
         },
       ]
     : [
-        { k: "pan", docType: "PAN_CARD", label: "PAN card", required: true },
+        { k: "pan", docType: "PAN", label: "PAN card", required: true },
         {
           k: "id",
-          docType: "GOVERNMENT_ID",
+          docType: "GOVT_ID",
           label: "Government ID (Aadhaar / Passport)",
           required: true,
         },
@@ -270,12 +299,14 @@ export function PartnerRegisterPage({ onSubmit, onLogin, onHome, session }) {
       )
     )
       e.gstin = "15-character GSTIN e.g. 27ABCDE1234F1Z5.";
+    else if (taken.gstin) e.gstin = "This GSTIN is already registered.";
     if (!v.signatory.trim()) e.signatory = "Authorised signatory is required.";
     if (!v.signatoryDesignation.trim())
       e.signatoryDesignation = "Signatory designation is required.";
   }
   if (!/^[A-Z]{5}\d{4}[A-Z]$/.test(v.pan.trim().toUpperCase()))
     e.pan = "PAN format e.g. ABCDE1234F.";
+  else if (taken.pan) e.pan = "This PAN is already registered.";
   if (v.yearEst && !/^(19|20)\d{2}$/.test(v.yearEst))
     e.yearEst = "Enter a 4-digit year.";
   if (v.altEmail && !RX.email.test(v.altEmail))

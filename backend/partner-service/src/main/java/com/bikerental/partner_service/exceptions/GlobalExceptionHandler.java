@@ -18,8 +18,10 @@ import java.util.Map;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ErrorResponse>  handleMethodArgumentNotValidException(MethodArgumentNotValidException ex) {
+    public ResponseEntity<ErrorResponse> handleMethodArgumentNotValidException(MethodArgumentNotValidException ex) {
         Map<String, String> errors = new HashMap<>();
 
         // Extract field names and their specific error messages
@@ -34,8 +36,7 @@ public class GlobalExceptionHandler {
                 HttpStatus.BAD_REQUEST.value(),
                 "Validation Failed",
                 "Please check the required fields.",
-                errors
-        );
+                errors);
 
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
     }
@@ -47,22 +48,39 @@ public class GlobalExceptionHandler {
                 HttpStatus.CONFLICT.value(), // 409 Conflict is ideal for duplicate entries
                 "Duplicate Resource",
                 ex.getMessage(),
-                null
-        );
+                null);
 
         return new ResponseEntity<>(response, HttpStatus.CONFLICT);
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ErrorResponse> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
+        String cause = ex.getMostSpecificCause().getMessage();
+        log.warn("Data integrity violation: {}", cause);
+
+        String message;
+        HttpStatus status = HttpStatus.CONFLICT;
+
+        if (cause.contains("partner_gst_unique")) {
+            message = "This GST number is already registered to another partner.";
+        } else if (cause.contains("partner_pan_unique")) {
+            message = "This PAN number is already registered to another partner.";
+        } else if (cause.contains("partner_document_type_valid")) {
+            message = "One or more document types are not recognised by the system.";
+            status = HttpStatus.BAD_REQUEST;
+        } else if (cause.contains("partner_user_id")) {
+            message = "A partner profile already exists for this account.";
+        } else {
+            message = "A database constraint was violated. Please check your details and try again.";
+        }
+
         ErrorResponse response = new ErrorResponse(
                 LocalDateTime.now(),
-                HttpStatus.CONFLICT.value(),
-                "Data Integrity Violation",
-                "A database constraint was violated. This usually means a unique value (like a GST or PAN number) is already registered.",
-                null
-        );
-        return new ResponseEntity<>(response, HttpStatus.CONFLICT);
+                status.value(),
+                status == HttpStatus.BAD_REQUEST ? "Invalid Data" : "Data Integrity Violation",
+                message,
+                null);
+        return new ResponseEntity<>(response, status);
     }
 
     @ExceptionHandler(ResourceAccessException.class)
@@ -72,8 +90,7 @@ public class GlobalExceptionHandler {
                 HttpStatus.SERVICE_UNAVAILABLE.value(), // 503 Service Unavailable
                 "Service Unavailable",
                 "A dependent internal service is currently unreachable. Please try again in a few moments.",
-                null
-        );
+                null);
         return new ResponseEntity<>(response, HttpStatus.SERVICE_UNAVAILABLE);
     }
 
@@ -85,8 +102,7 @@ public class GlobalExceptionHandler {
                 HttpStatus.BAD_REQUEST.value(),
                 "Malformed Request",
                 "The request body contains invalid JSON or mismatched data types. Please verify your payload format.",
-                null
-        );
+                null);
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
     }
 
@@ -98,8 +114,7 @@ public class GlobalExceptionHandler {
                 HttpStatus.BAD_REQUEST.value(),
                 "Bad Request",
                 ex.getMessage(),
-                null
-        );
+                null);
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
     }
 
@@ -114,8 +129,7 @@ public class GlobalExceptionHandler {
                 HttpStatus.BAD_REQUEST.value(),
                 "Invalid Parameter Format",
                 String.format("The parameter '%s' must be of type '%s'.", paramName, expectedType),
-                null
-        );
+                null);
 
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
     }
@@ -128,8 +142,7 @@ public class GlobalExceptionHandler {
                 HttpStatus.SERVICE_UNAVAILABLE.value(), // 503 means the storage server is acting up
                 "Storage Service Unavailable",
                 ex.getMessage(),
-                null
-        );
+                null);
         return new ResponseEntity<>(response, HttpStatus.SERVICE_UNAVAILABLE);
     }
 
@@ -140,8 +153,7 @@ public class GlobalExceptionHandler {
                 HttpStatus.NOT_FOUND.value(),
                 "Resource Not Found",
                 ex.getMessage(),
-                null
-        );
+                null);
         return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
     }
 
@@ -152,14 +164,12 @@ public class GlobalExceptionHandler {
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),
                 "Internal Server Error",
                 "An unexpected error occurred. Please try again later.", // Hide exact code errors from user
-                null
-        );
+                null);
 
         // Log the actual exception for debugging!
         ex.printStackTrace();
 
         return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
     }
-
 
 }
