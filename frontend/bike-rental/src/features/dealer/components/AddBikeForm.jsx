@@ -547,6 +547,55 @@ export function AddBikeForm({ onCancel, onSubmit, initial = null }) {
             </span>
           }
         >
+          <div className="mb-4 grid gap-4 sm:grid-cols-2">
+            <Field
+              icon={ShieldCheck}
+              label="Insurance Policy Number"
+              required
+              error={errors.insuranceNumber}
+              show={err("insuranceNumber")}
+            >
+              <input
+                value={v.insuranceNumber}
+                onChange={set("insuranceNumber")}
+                onBlur={blur("insuranceNumber")}
+                placeholder="POL123456789"
+                className="br-input w-full text-sm"
+              />
+            </Field>
+
+            <Field
+              icon={ShieldCheck}
+              label="Insurance Provider"
+              required
+              error={errors.insuranceProvider}
+              show={err("insuranceProvider")}
+            >
+              <input
+                value={v.insuranceProvider}
+                onChange={set("insuranceProvider")}
+                onBlur={blur("insuranceProvider")}
+                placeholder="ICICI Lombard"
+                className="br-input w-full text-sm"
+              />
+            </Field>
+
+            <Field
+              icon={FileText}
+              label="Policy Holder Name"
+              required
+              error={errors.insuranceHolder}
+              show={err("insuranceHolder")}
+            >
+              <input
+                value={v.insuranceHolder}
+                onChange={set("insuranceHolder")}
+                onBlur={blur("insuranceHolder")}
+                placeholder="John Doe"
+                className="br-input w-full text-sm"
+              />
+            </Field>
+          </div>
           <div className="flex flex-col gap-3">
             {[
               {
