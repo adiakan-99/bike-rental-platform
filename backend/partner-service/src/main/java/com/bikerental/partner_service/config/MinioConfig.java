@@ -3,8 +3,10 @@ package com.bikerental.partner_service.config;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 
 import io.minio.MinioClient;
+
 @Configuration
 public class MinioConfig {
 
@@ -21,14 +23,15 @@ public class MinioConfig {
 	private String secretKey;
 
 	@Bean
-	public MinioClient minioClient() {
+	@Primary
+	public MinioClient internalMinioClient() {
 		return MinioClient.builder().endpoint(internalUrl)
 				.credentials(accessKey, secretKey).build();
 	}
 
-	@Bean
+	@Bean(name = "publicMinioClient")
 	public MinioClient publicMinioClient() {
 		return MinioClient.builder().endpoint(publicUrl)
-				.credentials(accessKey, secretKey).build();
+				.credentials(accessKey, secretKey).region("us-east-1").build();
 	}
 }
