@@ -24,6 +24,12 @@ import { isSuspended } from "../lib/access.js";
 import { BIKES, getDealer } from "../mock";
 import { Guard } from "../ui";
 
+import {
+  PartnerOnboardingPage,
+  PartnerProfilePage,
+} from "../features/dealer/pages";
+import { PartnerManagementPage } from "../features/admin/pages";
+
 export function AppRoutes({ ctx }) {
   const {
     aboutSection,
@@ -49,6 +55,9 @@ export function AppRoutes({ ctx }) {
     goDetails,
     goHome,
     goResults,
+    goAdminPartners,
+    goPartnerOnboard,
+    goPartnerProfile,
     myListings,
     notify,
     openRental,
@@ -58,6 +67,7 @@ export function AppRoutes({ ctx }) {
     pBikes,
     pDealers,
     page,
+    pendingBook,
     partnerRentals,
     portalTab,
     recordIdentity,
@@ -86,6 +96,7 @@ export function AppRoutes({ ctx }) {
     wishlist,
     wishlistBikes,
   } = ctx;
+
   return (
     <main>
       {page === "home" && <LandingPage onSearch={goResults} />}
@@ -157,6 +168,7 @@ export function AppRoutes({ ctx }) {
           onForgotPassword={forgotPassword}
         />
       )}
+
       {page === "profile" &&
         (session ? (
           <ProfilePage
@@ -376,6 +388,44 @@ export function AppRoutes({ ctx }) {
           onHome={goHome}
           session={session}
         />
+      )}
+      {page === "partnerProfile" && (
+        <Guard
+          session={session}
+          need="portal.access"
+          onLogin={() => go("login")}
+          onHome={goHome}
+        >
+          <PartnerProfilePage onBack={goHome} onEdit={goPartnerOnboard} />
+        </Guard>
+      )}
+
+      {page === "partnerOnboard" && (
+        <Guard
+          session={session}
+          need="portal.access"
+          onLogin={() => go("login")}
+          onHome={goHome}
+        >
+          <PartnerOnboardingPage
+            onSuccess={() => {
+              notify("Partner profile submitted for review.");
+              goPartnerProfile();
+            }}
+            onCancel={goHome}
+          />
+        </Guard>
+      )}
+
+      {page === "adminPartners" && (
+        <Guard
+          session={session}
+          need="partner.approve"
+          onLogin={() => go("login")}
+          onHome={goHome}
+        >
+          <PartnerManagementPage onBack={goHome} notify={notify} />
+        </Guard>
       )}
       {page === "about" && (
         <AboutContactPage

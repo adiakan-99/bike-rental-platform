@@ -13,6 +13,10 @@ import java.util.Optional;
 public interface PartnerRepository extends JpaRepository<Partner, Integer> {
     boolean existsByUserId(Integer userId);
 
+    boolean existsByPanNumber(String panNumber);
+
+    boolean existsByGstNumber(String gstNumber);
+
     Optional<Partner> findByUserId(Integer userId);
 
     Page<Partner> findByApprovalStatus(String approvalStatus, Pageable pageable);
@@ -21,10 +25,10 @@ public interface PartnerRepository extends JpaRepository<Partner, Integer> {
             "(:city is null or p.city = :city) AND " +
             "(:accountStatus is null or p.accountStatus = :accountStatus) AND " +
             "(:search IS NULL OR LOWER(p.businessName) LIKE LOWER(CONCAT('%', :search, '%')))")
-    Page<Partner> findAllWithFilters(@Param("city")  String city,
-                                     @Param("accountStatus") String accountStatus,
-                                     @Param("search") String search,
-                                     Pageable pageable);
+    Page<Partner> findAllWithFilters(@Param("city") String city,
+            @Param("accountStatus") String accountStatus,
+            @Param("search") String search,
+            Pageable pageable);
 
     @Query("SELECT p.id FROM Partner p WHERE LOWER(p.city) = LOWER(:city) AND p.accountStatus = 'ACTIVE' AND p.approvalStatus = 'APPROVED'")
     List<Integer> findActiveApprovedPartnerIdsByCity(@Param("city") String city);

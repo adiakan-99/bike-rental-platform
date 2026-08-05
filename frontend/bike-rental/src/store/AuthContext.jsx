@@ -8,7 +8,7 @@ import {
   normalizeCustomerProfile,
   normalizeKyc,
 } from "../lib/session.js";
-import { getToken, clearAuth } from "../lib/authStorage.js";
+import { getToken, clearAuth } from "../lib/Authstorage.js";
 
 // Auth store — session + the account (`users`) table lifted out of App.
 // Behaviour is identical to the original App-local useState; only ownership moved.

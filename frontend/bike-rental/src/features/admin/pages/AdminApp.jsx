@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { getToken } from "../../../lib/authStorage.js";
+import partnerApi from "../../../api/partnerApi";
 import {
   Bike,
   Briefcase,

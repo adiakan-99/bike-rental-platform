@@ -25,7 +25,7 @@ import { Field, Label } from "../../../ui";
 import { RX } from "../../../lib/validation.js";
 import { uploadDocument, isAllowedUploadType } from "../../../lib/upload.js";
 import { fetchCustomerKyc } from "../../../lib/session.js";
-import { getToken } from "../../../lib/authStorage.js";
+import { getToken } from "../../../lib/Authstorage.js";
 import { FIELD_LIMITS, KYC_STATUS } from "../../../constants";
 import { useAuth } from "../../../store";
 

@@ -1,0 +1,1 @@
+export { usePartnerAdmin } from "./usePartnerAdmin";

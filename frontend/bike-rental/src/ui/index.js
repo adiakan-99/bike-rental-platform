@@ -23,3 +23,6 @@ export * from "./EmptyList.jsx";
 export * from "./SliderCaptcha.jsx";
 export * from "./FeedbackModal.jsx";
 export * from "./KycBanner.jsx";
+
+export * from "./LoadingSpinner.jsx";
+export * from "./ErrorAlert.jsx";

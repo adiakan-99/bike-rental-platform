@@ -12,3 +12,4 @@ export * from "./ResubmitModal.jsx";
 export * from "./Segmented.jsx";
 export * from "./SmallKpi.jsx";
 export * from "./StatusPill.jsx";
+export { PartnerOnboardingForm } from "./PartnerOnboardingForm";

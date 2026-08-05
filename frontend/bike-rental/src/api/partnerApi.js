@@ -1,11 +1,12 @@
 import axios from "axios";
+import { getToken } from "../lib/Authstorage.js";
 
 // vite.config.js proxies /api -> http://localhost:8080 (api-gateway).
 // Relative path only — matches how App.jsx already calls /api/v1/customers.
 const api = axios.create({ baseURL: "/api/v1/partners" });
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
+  const token = getToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
@@ -20,7 +21,7 @@ export const partnerApi = {
   getPartnerById: (id) => api.get(`/${id}`),
   getPartnerDocuments: (id) => api.get(`/${id}/documents`),
   getPublicProfile: (id) => api.get(`/public/${id}`),
-
+checkAvailability: (params) => api.get("/public/availability", { params }),
   admin: {
     getPending: (page = 0, size = 10) =>
       api.get("/admin/pending", { params: { page, size } }),
