@@ -31,8 +31,14 @@ public class CustomerKycServiceImpl implements CustomerKycService {
 	public CustomerKycResponseDTO createKyc(CustomerKycRequestDTO request,
 			Integer userId) {
 		// TODO Auto-generated method stub
-		Customer customer = customerRepository.findByUserId(userId)
-				.orElseThrow(() -> new CustomerNotFoundException(userId));
+		Customer customer = customerRepository.findByUserId(userId).orElseGet(() -> {
+			Customer c = new Customer();
+			c.setUserId(userId);
+			OffsetDateTime now = OffsetDateTime.now();
+			c.setCreatedAt(now);
+			c.setUpdatedAt(now);
+			return customerRepository.save(c);
+		});
 
 		if (customerKycRepository
 				.existsByCustomerCustomerId(customer.getCustomerId())) {
@@ -142,7 +148,5 @@ public class CustomerKycServiceImpl implements CustomerKycService {
 
 		return response;
 	}
-
-	
 
 }

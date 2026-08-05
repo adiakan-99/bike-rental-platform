@@ -998,7 +998,7 @@ export const FIELD_LIMITS = {
   pan: 10,
   gstin: 15,
   ifsc: 11,
-  dl: 16,
+  dl: 20,
   accNo: 18,
   businessName: 120,
 };
