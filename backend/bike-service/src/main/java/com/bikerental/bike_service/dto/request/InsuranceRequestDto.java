@@ -19,4 +19,6 @@ public class InsuranceRequestDto {
 
     @NotNull(message = "Insurance expiry date is required")
     private LocalDate expiryDate;
+
+    private String insuranceUploadUrl;
 }

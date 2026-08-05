@@ -1,15 +1,23 @@
-// AUTO-EXTRACTED (verbatim) from BikeRentalSite_optimisedUI.jsx — do not edit logic.
-import { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { getBike, getBikes } from "./lib/bikeRegistry.js";
 import axios from "axios";
 import { COMPARE_MAX, DISPUTE_WINDOW_HOURS } from "./config";
 import { MONTHS, ROLE } from "./constants";
 import { CompareTray } from "./features/compare/components";
 import { accountStatusMessage, isSuspended, kycOk } from "./lib/access.js";
-import { getToken, clearAuth } from "./lib/AuthStorage.js";
-import { BIKES, MY_FLEET_SEED, PENDING_BIKES_SEED, makeRentals } from "./mock";
+import { getToken, clearAuth } from "./lib/Authstorage.js";
+import { makeRentals } from "./mock";
 import { AppRoutes } from "./routes";
 import { useAuth } from "./store";
+import { useMyFleet } from "./features/dealer/hooks";
 import { Footer, KycBanner, Navbar, Styles, Toast } from "./ui";
+import { createBikeListing, updateBikeListing } from "./api/bikes.js";
+import {
+  fleetDtoToListing,
+  formToListingDto,
+  formToOperationalDto,
+} from "./lib/adapters/bike.js";
+import { usePendingBikes } from "./features/admin/hooks/usePendingBikes.js";
 
 import partnerApi from "./api/partnerApi";
 
@@ -224,7 +232,8 @@ export default function App() {
   const goAdminPartners = () => go("adminPartners");
 
   const toggleWish = (id) => {
-    const bike = BIKES.find((b) => b.id === id);
+    const bike = getBike(id);
+
     const next = new Set(wishlist);
     const removing = next.has(id);
     removing ? next.delete(id) : next.add(id);
@@ -237,7 +246,7 @@ export default function App() {
         removing ? "info" : "success",
       );
   };
-  const wishlistBikes = BIKES.filter((b) => wishlist.has(b.id));
+  const wishlistBikes = getBikes(wishlist);
   const [toast, setToast] = useState(null);
   const [aboutSection, setAboutSection] = useState(null);
   // Admin is intentionally NOT linked from the public site.
@@ -303,7 +312,8 @@ export default function App() {
   // NOTE: decide the outcome outside the state updater — calling setState (notify)
   // inside an updater is a side effect React may double-invoke or drop.
   const toggleCompare = (id) => {
-    const bike = BIKES.find((b) => b.id === id);
+    //changed
+    const bike = getBike(id);
     const next = new Set(compare);
     if (next.has(id)) {
       next.delete(id);
@@ -326,11 +336,14 @@ export default function App() {
         : `${bike.name} added to compare (${next.size}/${COMPARE_MAX})`,
     );
   };
-  const compareBikes = BIKES.filter((b) => compare.has(b.id));
+  // const compareBikes = BIKES.filter((b) => compare.has(b.id));
+
+  // change To this:
+  const compareBikes = getBikes(compare);
+
   const [pDealers, setPDealers] = useState([]);
 
   const loadPendingPartners = useCallback(async () => {
-    console.log("loadPendingPartners called");
     try {
       const { data } = await partnerApi.admin.getPending(0, 50);
       setPDealers(
@@ -364,7 +377,10 @@ export default function App() {
     if (session?.roles?.includes(ROLE.ADMIN)) loadPendingPartners();
   }, [session, loadPendingPartners]);
 
-  const [pBikes, setPBikes] = useState(PENDING_BIKES_SEED);
+  // const [pBikes, setPBikes] = useState(PENDING_BIKES_SEED);
+  const { rows: pBikes, decide: handleDecideBike } = usePendingBikes({
+    enabled: !!session?.roles?.includes("ADMIN"),
+  });
   // supply side: partner registrations and bike listings feed the admin approval queues
   const submitPartner = async (form) => {
     const nz = (s) => (s && String(s).trim() ? String(s).trim() : null);
@@ -417,21 +433,65 @@ export default function App() {
       notify(err.response?.data?.message || "Submission failed", "error");
     }
   };
-  const [myListings, setMyListings] = useState(MY_FLEET_SEED);
+
+  //changed
+  const {
+    listings: myListings,
+    setListings: setMyListings,
+    loading: fleetLoading,
+    error: fleetError,
+    refresh: refreshFleet,
+    setStatus: setBikeStatus,
+    remove: deleteListing,
+    patchOperational,
+  } = useMyFleet({ enabled: !!session?.roles?.includes("PARTNER") });
+
   // Editing an approved listing sends it back through review — same as a new submission.
-  const editListing = (id, patch) =>
-    setMyListings((prev) =>
-      prev.map((l) =>
-        l.id === id
-          ? {
-              ...l,
-              ...patch,
-              status: l.status === "Draft" ? "Draft" : "Pending approval",
-              note: undefined,
-            }
-          : l,
-      ),
-    );
+  // const editListing = (id, patch) =>
+  //   setMyListings((prev) =>
+  //     prev.map((l) =>
+  //       l.id === id
+  //         ? {
+  //             ...l,
+  //             ...patch,
+  //             status: l.status === "Draft" ? "Draft" : "Pending approval",
+  //             note: undefined,
+  //           }
+  //         : l,
+  //     ),
+  //   );
+  const editListing = async (id, form) => {
+    const existing = myListings.find((l) => l.id === id);
+    // Stored URLs come back presigned (…?X-Amz-Signature=…). Strip the query so
+    // we round-trip the object reference, not a signature that expires in 5h.
+    const bare = (u) => (u ? String(u).split("?")[0] : u);
+
+    try {
+      const saved = fleetDtoToListing(
+        await updateBikeListing(
+          id,
+          formToListingDto(form, {
+            photoUrls: form._photoUrls?.length
+              ? form._photoUrls
+              : (existing?.images || []).map(bare),
+            certUrls: {
+              rc: form._certUrls?.rc || bare(existing?.certs?.rc?.url),
+              puc: form._certUrls?.puc || bare(existing?.certs?.puc?.url),
+              insurance:
+                form._certUrls?.insurance ||
+                bare(existing?.certs?.insurance?.file),
+            },
+          }),
+        ),
+      );
+      setMyListings((prev) => prev.map((l) => (l.id === id ? saved : l)));
+      notify("Listing updated", "success");
+    } catch (e) {
+      console.error("Edit listing error:", e);
+      notify(e.userMessage || "Update failed", "error");
+    }
+  };
+
   const setListingStatus = (id, status, patch = {}) =>
     setMyListings((prev) =>
       prev.map((l) =>
@@ -446,31 +506,57 @@ export default function App() {
           : l,
       ),
     );
-  const submitListing = (listing) => {
-    setMyListings((prev) => [
-      { ...listing, id: `L${Date.now()}`, status: "Pending approval" },
-      ...prev,
-    ]);
-    setPBikes((prev) => [
-      {
-        id: Date.now(),
-        name: listing.name,
-        mf: listing.mf,
-        owner: "Apex Moto Rentals",
-        type: "Business",
-        reg: listing.reg,
-        year: listing.year,
-        docs: ["RC book", "Insurance"],
-        cat: listing.cat,
-        cc: Number(listing.cc) || 0,
-        price: Number(listing.price) || 0,
-        date: `${new Date().getDate()} ${MONTHS[new Date().getMonth()]} ${new Date().getFullYear()}`,
-      },
-      ...prev,
-    ]);
-  };
+  // const submitListing = (listing) => {
+  //   setMyListings((prev) => [
+  //     { ...listing, id: `L${Date.now()}`, status: "Pending approval" },
+  //     ...prev,
+  //   ]);
+  //   setPBikes((prev) => [
+  //     {
+  //       id: Date.now(),
+  //       name: listing.name,
+  //       mf: listing.mf,
+  //       owner: "Apex Moto Rentals",
+  //       type: "Business",
+  //       reg: listing.reg,
+  //       year: listing.year,
+  //       docs: ["RC book", "Insurance"],
+  //       cat: listing.cat,
+  //       cc: Number(listing.cc) || 0,
+  //       price: Number(listing.price) || 0,
+  //       date: `${new Date().getDate()} ${MONTHS[new Date().getMonth()]} ${new Date().getFullYear()}`,
+  //     },
+  //     ...prev,
+  //   ]);
+  // };
 
   // --- deposit settlement mutations (mirror the DB transitions) ---
+  const submitListing = async (listing) => {
+    try {
+      // 1. Transform form values and uploaded asset URLs into the DTO shape
+      const dto = formToListingDto(listing, {
+        photoUrls: listing._photoUrls,
+        certUrls: listing._certUrls,
+      });
+
+      // 2. Call real backend API
+      const saved = await createBikeListing(dto);
+
+      // 3. Update dealer's local fleet state with the converted saved response
+      setMyListings((prev) => [fleetDtoToListing(saved), ...prev]);
+
+      // 4. Show success toast notification (if your notify helper is in scope)
+      if (typeof notify === "function") {
+        notify("Listing submitted for review", "success");
+      }
+    } catch (e) {
+      if (typeof notify === "function") {
+        notify(e.userMessage || "Couldn't submit the listing", "error");
+      } else {
+        console.error("Submit listing error:", e);
+      }
+    }
+  };
   const updateDeduction = (rentalId, dedId, patch) =>
     setRentals((prev) =>
       prev.map((r) =>
@@ -883,6 +969,7 @@ export default function App() {
           openRentalReport,
           openRentalReview,
           pBikes,
+          onDecideBike: handleDecideBike,
           pDealers,
           page,
           pendingBook,
@@ -902,7 +989,6 @@ export default function App() {
           setBooking,
           setCompare,
           setListingStatus,
-          setPBikes,
           setPDealers,
           setSession,
           socialAuth,
@@ -913,6 +999,11 @@ export default function App() {
           users,
           wishlist,
           wishlistBikes,
+          fleetLoading,
+          fleetError,
+          refreshFleet,
+          setBikeStatus,
+          deleteListing,
         }}
       />
       <Toast toast={toast} onClose={() => setToast(null)} />

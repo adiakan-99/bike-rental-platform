@@ -21,7 +21,8 @@ import { ReportPage } from "../features/report/pages";
 import { WriteReviewPage } from "../features/review/pages";
 import { WishlistPage } from "../features/wishlist/pages";
 import { isSuspended } from "../lib/access.js";
-import { BIKES, getDealer } from "../mock";
+import { getDealer } from "../mock";
+import { findBike } from "../lib/bikeRegistry.js";
 import { Guard } from "../ui";
 
 import {
@@ -60,6 +61,7 @@ export function AppRoutes({ ctx }) {
     goPartnerProfile,
     myListings,
     notify,
+    onDecideBike,
     openRental,
     openRentalCancel,
     openRentalReport,
@@ -84,7 +86,6 @@ export function AppRoutes({ ctx }) {
     setBooking,
     setCompare,
     setListingStatus,
-    setPBikes,
     setPDealers,
     setSession,
     socialAuth,
@@ -95,6 +96,11 @@ export function AppRoutes({ ctx }) {
     users,
     wishlist,
     wishlistBikes,
+    deleteListing,
+    fleetError,
+    fleetLoading,
+    refreshFleet,
+    setBikeStatus,
   } = ctx;
 
   return (
@@ -146,7 +152,7 @@ export function AppRoutes({ ctx }) {
           wishlist={wishlist}
           onWish={toggleWish}
           onDealer={(d) =>
-            goDealer(d, BIKES.find((b) => b.dealer === d.id) || selectedBike)
+            goDealer(d, findBike((b) => b.dealer === d.id) || selectedBike)
           }
         />
       )}
@@ -346,7 +352,7 @@ export function AppRoutes({ ctx }) {
             pDealers={pDealers}
             setPDealers={setPDealers}
             pBikes={pBikes}
-            setPBikes={setPBikes}
+            onDecideBike={onDecideBike}
             adminAction={adminAction}
           />
         </Guard>
@@ -363,6 +369,11 @@ export function AppRoutes({ ctx }) {
             rentals={partnerRentals}
             onInspect={recordInspection}
             listings={myListings}
+            fleetLoading={fleetLoading}
+            fleetError={fleetError}
+            onRefreshFleet={refreshFleet}
+            onSetBikeStatus={setBikeStatus}
+            onDeleteListing={deleteListing}
             onListBike={submitListing}
             onEditListing={(id, patch) => {
               editListing(id, patch);

@@ -63,8 +63,12 @@ services:
       - "8082:8082"
     environment:
       <<: *minio-env
+      AUTH_SERVICE_URL: http://auth-service:8081
     networks:
       - bike-rental-network
+    depends_on:
+      - auth-service
+      - minio
 
   partner-service:
     build:
@@ -75,14 +79,11 @@ services:
     environment:
       <<: *minio-env
       AUTH_SERVICE_URL: http://auth-service:8081
-      MINIO_URL: http://minio:9000
-      MINIO_ACCESS_KEY: minioadmin
-      MINIO_SECRET_KEY: minioadminpassword
+    networks:
+      - bike-rental-network
     depends_on:
       - auth-service
       - minio
-    networks:
-      - bike-rental-network
 
   bike-service:
     build:
@@ -90,6 +91,16 @@ services:
     container_name: bike-service
     ports:
       - "8084:8084"
+
+    environment:
+      <<: *minio-env
+      AUTH_SERVICE_URL: http://auth-service:8081
+      PARTNER_SERVICE_URL: http://partner-service:8083
+      BOOKING_SERVICE_URL: http://booking-service:8085
+    depends_on:
+      - auth-service
+      - minio
+
     networks:
       - bike-rental-network
 

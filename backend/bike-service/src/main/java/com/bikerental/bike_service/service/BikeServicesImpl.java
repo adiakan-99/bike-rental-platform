@@ -19,13 +19,18 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import lombok.extern.slf4j.Slf4j;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
+
 @Service
+@Slf4j
 public class BikeServicesImpl implements BikeServices {
     private final BikeRepository bikeRepository;
     private final InsuranceRepository insuranceRepository;
@@ -34,10 +39,10 @@ public class BikeServicesImpl implements BikeServices {
     private final BookingServiceClient bookingServiceClient;
 
     public BikeServicesImpl(BikeRepository bikeRepository,
-                            InsuranceRepository insuranceRepository,
-                            PartnerServiceClient partnerServiceClient,
-                            StorageServices storageServices,
-                            BookingServiceClient bookingServiceClient) {
+            InsuranceRepository insuranceRepository,
+            PartnerServiceClient partnerServiceClient,
+            StorageServices storageServices,
+            BookingServiceClient bookingServiceClient) {
         this.bikeRepository = bikeRepository;
         this.insuranceRepository = insuranceRepository;
         this.partnerServiceClient = partnerServiceClient;
@@ -50,17 +55,19 @@ public class BikeServicesImpl implements BikeServices {
     public FleetListingDto createBikeListing(Integer userId, BikeListingRequestDto requestDto) {
         PartnerStatusDto partner = partnerServiceClient.getPartnerStatus(userId);
 
-        if (partner == null || !partner.getAccountStatus().equals("ACTIVE") || !partner.getApprovalStatus().equals("APPROVED")) {
+        if (partner == null || !partner.getAccountStatus().equals("ACTIVE")
+                || !partner.getApprovalStatus().equals("APPROVED")) {
             throw new AccessDeniedException("User with user id: " + userId + " is not approved or not active");
         }
 
         Integer partnerId = partner.getPartnerId();
 
         if (bikeRepository.existsByRegistrationNumber(requestDto.getRegistrationNumber())) {
-            throw new IllegalArgumentException("A bike with the registration number " + requestDto.getRegistrationNumber() + " already exists");
+            throw new IllegalArgumentException(
+                    "A bike with the registration number " + requestDto.getRegistrationNumber() + " already exists");
         }
 
-        InsuranceRequestDto  insuranceRequestDto = requestDto.getInsurance();
+        InsuranceRequestDto insuranceRequestDto = requestDto.getInsurance();
         Insurance insurance = new Insurance();
         BeanUtils.copyProperties(insuranceRequestDto, insurance);
 
@@ -106,7 +113,8 @@ public class BikeServicesImpl implements BikeServices {
     public FleetListingDto updateBikeListing(Integer userId, Integer bikeId, BikeListingRequestDto requestDto) {
         PartnerStatusDto partner = partnerServiceClient.getPartnerStatus(userId);
 
-        if (partner == null || !partner.getAccountStatus().equals("ACTIVE") || !partner.getApprovalStatus().equals("APPROVED")) {
+        if (partner == null || !partner.getAccountStatus().equals("ACTIVE")
+                || !partner.getApprovalStatus().equals("APPROVED")) {
             throw new AccessDeniedException("User with user id: " + userId + " is not approved or not active");
         }
 
@@ -117,19 +125,34 @@ public class BikeServicesImpl implements BikeServices {
 
         if (!existingBike.getRegistrationNumber().equals(requestDto.getRegistrationNumber())) {
             if (bikeRepository.existsByRegistrationNumber(requestDto.getRegistrationNumber())) {
-                throw new IllegalArgumentException("Bike with the registration number " + requestDto.getRegistrationNumber() + " already exists");
+                throw new IllegalArgumentException(
+                        "Bike with the registration number " + requestDto.getRegistrationNumber() + " already exists");
             }
         }
 
-        BeanUtils.copyProperties(requestDto, existingBike, "bikeId", "partnerId", "insurance", "bikeDetails", "bikeImages", "createdAt", "approvedBy", "approvedAt", "rejectionReason");
+        // Capture pre-update values — copyProperties below overwrites them.
+        String oldReg = existingBike.getRegistrationNumber();
+        String oldRc = existingBike.getRcUploadUrl();
+        String oldPuc = existingBike.getPucUploadUrl();
 
-        existingBike.setApprovalStatus(ApprovalStatus.PENDING);
+        BeanUtils.copyProperties(requestDto, existingBike, "bikeId", "partnerId", "insurance", "bikeDetails",
+                "bikeImages", "createdAt", "approvedBy", "approvedAt", "rejectionReason");
 
-        existingBike.setRejectionReason(null);
+        // Only registration or document changes warrant re-verification. Spec edits
+        // (engine cc, colour, year) leave an approved listing live.
+        boolean docsChanged = !Objects.equals(oldReg, existingBike.getRegistrationNumber())
+                || !Objects.equals(oldRc, existingBike.getRcUploadUrl())
+                || !Objects.equals(oldPuc, existingBike.getPucUploadUrl());
+
+        if (docsChanged) {
+            existingBike.setApprovalStatus(ApprovalStatus.PENDING);
+            existingBike.setBikeStatus(BikeStatus.INACTIVE);
+            existingBike.setRejectionReason(null);
+        }
 
         Insurance insurance = existingBike.getInsurance();
         if (insurance != null && requestDto.getInsurance() != null) {
-            BeanUtils.copyProperties(insurance, existingBike, "insuranceId");
+            BeanUtils.copyProperties(requestDto.getInsurance(), insurance, "insuranceId");
             insuranceRepository.save(insurance);
         }
 
@@ -155,7 +178,7 @@ public class BikeServicesImpl implements BikeServices {
 
             for (BikeImageRequestDto imageRequest : requestDto.getImages()) {
                 BikeImage bikeImage = new BikeImage();
-                BeanUtils.copyProperties(imageRequest, bikeImage,  "bikeImageId");
+                BeanUtils.copyProperties(imageRequest, bikeImage, "bikeImageId");
                 bikeImage.setBike(existingBike);
                 existingBike.getBikeImages().add(bikeImage);
             }
@@ -168,10 +191,12 @@ public class BikeServicesImpl implements BikeServices {
 
     @Override
     @Transactional
-    public FleetListingDto updateOperationalDetails(Integer userId, Integer bikeId, BikeOperationalUpdateDto requestDto) {
+    public FleetListingDto updateOperationalDetails(Integer userId, Integer bikeId,
+            BikeOperationalUpdateDto requestDto) {
 
         PartnerStatusDto partner = partnerServiceClient.getPartnerStatus(userId);
-        if (partner == null || !partner.getAccountStatus().equals("ACTIVE") || !partner.getApprovalStatus().equals("APPROVED")) {
+        if (partner == null || !partner.getAccountStatus().equals("ACTIVE")
+                || !partner.getApprovalStatus().equals("APPROVED")) {
             throw new AccessDeniedException("User is not approved or active");
         }
 
@@ -216,7 +241,7 @@ public class BikeServicesImpl implements BikeServices {
     public void deleteBikeListing(Integer userId, Integer bikeId) {
         PartnerStatusDto partner = partnerServiceClient.getPartnerStatus(userId);
 
-        if  (partner == null || !partner.getAccountStatus().equals("ACTIVE")) {
+        if (partner == null || !partner.getAccountStatus().equals("ACTIVE")) {
             throw new AccessDeniedException("User is not approved or active");
         }
 
@@ -245,7 +270,8 @@ public class BikeServicesImpl implements BikeServices {
 
     @Override
     public Page<PendingBikeDto> getPendingBikeList(Pageable pageable) {
-        Page<Bike> pendingBikesPage = bikeRepository.findByApprovalStatusAndDeletedAtIsNull(ApprovalStatus.PENDING, pageable);
+        Page<Bike> pendingBikesPage = bikeRepository.findByApprovalStatusAndDeletedAtIsNull(ApprovalStatus.PENDING,
+                pageable);
 
         return pendingBikesPage.map(bike -> {
             InsuranceRequestDto insuranceRequestDto = null;
@@ -287,7 +313,8 @@ public class BikeServicesImpl implements BikeServices {
     }
 
     @Override
-    public BikeAdminActionResponseDto reviewBikeListing(Integer userId, Integer bikeId, BikeAdminReviewRequestDto requestDto) {
+    public BikeAdminActionResponseDto reviewBikeListing(Integer userId, Integer bikeId,
+            BikeAdminReviewRequestDto requestDto) {
         Bike bike = bikeRepository.findById(bikeId)
                 .filter(b -> b.getDeletedAt() == null)
                 .orElseThrow(() -> new IllegalArgumentException("Bike not found"));
@@ -326,7 +353,8 @@ public class BikeServicesImpl implements BikeServices {
     }
 
     @Override
-    public Page<BikeCardDto> browseBike(String city, LocalDateTime startDate, LocalDateTime endDate, String manufacturer, String category, BigDecimal minPrice, BigDecimal maxPrice, Pageable pageable) {
+    public Page<BikeCardDto> browseBike(String city, LocalDateTime startDate, LocalDateTime endDate,
+            String manufacturer, String category, BigDecimal minPrice, BigDecimal maxPrice, Pageable pageable) {
         List<Integer> partnerIdsInCity = null;
 
         if (city != null && !city.trim().isEmpty()) {
@@ -337,7 +365,10 @@ public class BikeServicesImpl implements BikeServices {
                     return Page.empty(pageable);
                 }
             } catch (Exception e) {
-                return Page.empty(pageable);
+                log.error("partner-service lookup failed for city {}", city, e);
+                throw new ResponseStatusException(
+                        HttpStatus.SERVICE_UNAVAILABLE,
+                        "Could not load bikes right now. Please try again.");
             }
         }
 
@@ -356,15 +387,16 @@ public class BikeServicesImpl implements BikeServices {
                         .map(Bike::getBikeId)
                         .toList();
 
-                if (candidateBikeByIds.isEmpty()) {
+                if (!candidateBikeByIds.isEmpty()) {
                     bookedBikeIds = bookingServiceClient.getConflictingBikeIds(startDate, endDate, candidateBikeByIds);
                 }
             } catch (Exception e) {
-                System.out.println("Booking service unavailable");
+                log.warn("Booking service unavailable — showing results without availability filtering", e);
             }
         }
 
-        Page<Bike> bikePage = bikeRepository.searchBikes(partnerIdsInCity, bookedBikeIds, manufacturer, category, minPrice, maxPrice, pageable);
+        Page<Bike> bikePage = bikeRepository.searchBikes(partnerIdsInCity, bookedBikeIds, manufacturer, category,
+                minPrice, maxPrice, pageable);
 
         return bikePage.map(bike -> {
             String primaryImageUrl = null;
@@ -404,19 +436,21 @@ public class BikeServicesImpl implements BikeServices {
     @Override
     public BikeDetailDto getBikeDetailById(Integer bikeId) {
         Bike bike = bikeRepository.findByBikeIdAndApprovalStatusAndBikeStatusAndDeletedAtIsNull(
-                bikeId, ApprovalStatus.APPROVED, BikeStatus.AVAILABLE
-        ).orElseThrow(() -> new IllegalArgumentException("No bike with id " + bikeId));
+                bikeId, ApprovalStatus.APPROVED, BikeStatus.AVAILABLE)
+                .orElseThrow(() -> new IllegalArgumentException("No bike with id " + bikeId));
 
         return mapToBikeDetailDto(bike);
     }
 
     @Override
-    public BikeAvailabilityResponseDto getBikeAvailabilityById(Integer bikeId, LocalDateTime startDate, LocalDateTime endDate) {
+    public BikeAvailabilityResponseDto getBikeAvailabilityById(Integer bikeId, LocalDateTime startDate,
+            LocalDateTime endDate) {
         if (startDate == null || endDate == null || startDate.isAfter(endDate)) {
             throw new IllegalArgumentException("Invalid start date " + startDate + " and end date " + endDate);
         }
 
-        Optional<Bike> bikeOpt = bikeRepository.findByBikeIdAndApprovalStatusAndBikeStatusAndDeletedAtIsNull(bikeId, ApprovalStatus.APPROVED, BikeStatus.AVAILABLE);
+        Optional<Bike> bikeOpt = bikeRepository.findByBikeIdAndApprovalStatusAndBikeStatusAndDeletedAtIsNull(bikeId,
+                ApprovalStatus.APPROVED, BikeStatus.AVAILABLE);
 
         if (bikeOpt.isEmpty()) {
             return BikeAvailabilityResponseDto.builder()
@@ -428,7 +462,8 @@ public class BikeServicesImpl implements BikeServices {
         boolean isAvailable = true;
 
         try {
-            BookingConflictResponseDto conflictResponseDto = bookingServiceClient.checkBikeConflict(bikeId, startDate, endDate);
+            BookingConflictResponseDto conflictResponseDto = bookingServiceClient.checkBikeConflict(bikeId, startDate,
+                    endDate);
             if (conflictResponseDto != null && conflictResponseDto.getHasConflict()) {
                 isAvailable = false;
             }
@@ -455,8 +490,7 @@ public class BikeServicesImpl implements BikeServices {
         List<Bike> bikes = bikeRepository.findByBikeIdInAndApprovalStatusAndBikeStatusAndDeletedAtIsNull(
                 ids,
                 ApprovalStatus.APPROVED,
-                BikeStatus.AVAILABLE
-        );
+                BikeStatus.AVAILABLE);
 
         Map<Integer, Bike> bikeMap = bikes.stream()
                 .collect(Collectors.toMap(Bike::getBikeId, b -> b));
@@ -491,7 +525,8 @@ public class BikeServicesImpl implements BikeServices {
     public FleetListingDto getPartnerBikeById(Integer userId, Integer bikeId) {
         PartnerStatusDto partner = partnerServiceClient.getPartnerStatus(userId);
 
-        if (partner == null || !partner.getAccountStatus().equals("ACTIVE") || !partner.getApprovalStatus().equals("APPROVED")) {
+        if (partner == null || !partner.getAccountStatus().equals("ACTIVE")
+                || !partner.getApprovalStatus().equals("APPROVED")) {
             throw new AccessDeniedException("User is not authorized to perform this operation");
         }
 
@@ -537,8 +572,11 @@ public class BikeServicesImpl implements BikeServices {
                 .category(bike.getBikeDetails() != null ? bike.getBikeDetails().getBikeCategory() : null)
                 .hourlyRate(bike.getHourlyRate())
                 .securityDeposit(bike.getSecurityDeposit())
-                .rcUploadUrl(bike.getRcUploadUrl() != null ? storageServices.getFileDownloadUrl(bike.getRcUploadUrl()) : null)
-                .pucUploadUrl(bike.getPucUploadUrl() != null ? storageServices.getFileDownloadUrl(bike.getPucUploadUrl()) : null)
+                .rcUploadUrl(bike.getRcUploadUrl() != null ? storageServices.getFileDownloadUrl(bike.getRcUploadUrl())
+                        : null)
+                .pucUploadUrl(
+                        bike.getPucUploadUrl() != null ? storageServices.getFileDownloadUrl(bike.getPucUploadUrl())
+                                : null)
                 .approvalStatus(bike.getApprovalStatus())
                 .createdAt(bike.getCreatedAt())
                 .registrationExpiry(bike.getRegistrationExpiry())
@@ -551,11 +589,11 @@ public class BikeServicesImpl implements BikeServices {
     private BikeDetailDto mapToBikeDetailDto(Bike bike) {
         BikeDetails bikeDetails = bike.getBikeDetails();
 
-
         List<BikeImageResponseDto> images = new ArrayList<>();
         if (bike.getBikeImages() != null && !bike.getBikeImages().isEmpty()) {
             images = bike.getBikeImages().stream()
-                    .sorted(Comparator.comparing(BikeImage::getDisplayOrder, Comparator.nullsLast(Comparator.naturalOrder())))
+                    .sorted(Comparator.comparing(BikeImage::getDisplayOrder,
+                            Comparator.nullsLast(Comparator.naturalOrder())))
                     .map(img -> BikeImageResponseDto.builder()
                             .imageUrl(storageServices.getFileDownloadUrl(img.getImageUrl()))
                             .displayOrder(img.getDisplayOrder())
@@ -569,7 +607,8 @@ public class BikeServicesImpl implements BikeServices {
             Object itemsObj = additionalServices.get("includedItems");
             if (itemsObj instanceof List<?>) {
                 for (Object item : (List<?>) itemsObj) {
-                    if (item != null) includedItems.add(item.toString());
+                    if (item != null)
+                        includedItems.add(item.toString());
                 }
             }
         }
@@ -578,8 +617,7 @@ public class BikeServicesImpl implements BikeServices {
                 "Original Driving License required at vehicle pickup",
                 "Govt ID proof (Aadhaar / Passport) mandatory",
                 "Fuel is not included; return at the same level",
-                "Speed limit is 80 km/h; penalty applicable for overspeeding"
-        );
+                "Speed limit is 80 km/h; penalty applicable for overspeeding");
 
         return BikeDetailDto.builder()
                 .bikeId(bike.getBikeId())

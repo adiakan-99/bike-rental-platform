@@ -2,9 +2,10 @@
 // MODIFIED: added the "kyc" (Verify Riders) tab — see KycReviewPage import, kycPending state,
 // badgeFor(), and the new {tab === "kyc" && ...} block below. Everything else is unchanged.
 import { useEffect, useState } from "react";
+import partnerApi from "../../../api/partnerApi";
+
 import axios from "axios";
 import { getToken } from "../../../lib/authStorage.js";
-import partnerApi from "../../../api/partnerApi";
 import {
   Bike,
   Briefcase,
@@ -61,7 +62,7 @@ export function AdminApp({
   pDealers,
   setPDealers,
   pBikes,
-  setPBikes,
+  onDecideBike,
   adminAction,
 }) {
   const [reviewBike, setReviewBike] = useState(null); // listing open in the review modal
@@ -285,6 +286,47 @@ export function AdminApp({
     status: "All",
     sort: "name",
   });
+  const [fB, setFB] = useState({
+    q: "",
+    cat: "All",
+    status: "All",
+    sort: "name",
+  });
+
+  useEffect(() => {
+    if (!flash) return;
+    const id = setTimeout(() => setFlash(""), 3000);
+    return () => clearTimeout(id);
+  }, [flash]);
+
+  const decideDealer = async (id, action, reason) => {
+    const d = pDealers.find((x) => x.id === id);
+    try {
+      await partnerApi.admin.review(id, {
+        approvalStatus: action === "approve" ? "APPROVED" : "REJECTED",
+        adminRemarks: action === "approve" ? null : reason,
+      });
+      setPDealers((p) => p.filter((x) => x.id !== id));
+      setSelDealer(null);
+      setFlash(
+        `${d?.business || "Dealer"} ${action === "approve" ? "approved and activated" : "rejected"}.`,
+      );
+    } catch (err) {
+      setFlash(err.response?.data?.message || "Could not submit the decision.");
+    }
+  };
+
+  const decideBike = async (id, action, reason) => {
+    const b = pBikes.find((x) => x.id === id);
+    try {
+      await onDecideBike(id, action, reason);
+      setFlash(
+        `${b?.name || "Bike"} ${action === "approve" ? "approved" : "rejected"}.`,
+      );
+    } catch (err) {
+      setFlash(err.userMessage || "Could not submit the decision.");
+    }
+  };
 
   // Real customers from Admin Service — includes Auth identity + accountStatus.
   const [custRows, setCustRows] = useState([]);
@@ -362,34 +404,8 @@ export function AdminApp({
       })
       .catch(() => setFlash("Could not update customer status."));
   };
-  const [fB, setFB] = useState({
-    q: "",
-    cat: "All",
-    status: "All",
-    sort: "name",
-  });
 
-  useEffect(() => {
-    if (!flash) return;
-    const id = setTimeout(() => setFlash(""), 3000);
-    return () => clearTimeout(id);
-  }, [flash]);
-
-  const decideDealer = (id, action, reason) => {
-    const d = pDealers.find((x) => x.id === id);
-    setPDealers((p) => p.filter((x) => x.id !== id));
-    setSelDealer(null);
-    setFlash(
-      `${d?.business || "Dealer"} ${action === "approve" ? "approved and activated" : "rejected"}.`,
-    );
-  };
-  const decideBike = (id, action, reason) => {
-    const b = pBikes.find((x) => x.id === id);
-    setPBikes((p) => p.filter((x) => x.id !== id));
-    setFlash(
-      `${b?.name || "Bike"} ${action === "approve" ? "approved" : "rejected"}.`,
-    );
-  };
+  // Rejections route through a reason-capture modal first.
   // Rejections route through a reason-capture modal first.
   const [rejectTarget, setRejectTarget] = useState(null); // { kind, id, name }
   const askRejectDealer = (id) => {
@@ -1043,177 +1059,159 @@ export function AdminApp({
                 <h2 className="br-display mb-4 text-lg font-bold">
                   Customer Details
                 </h2>
-                {custErr && (
-                  <p
-                    className="mb-3 text-sm font-semibold"
-                    style={{ color: "#c0392b" }}
-                  >
-                    {custErr}
-                  </p>
-                )}
-                {custLoading ? (
-                  <p className="text-sm" style={{ color: "var(--mute)" }}>
-                    Loading customers…
-                  </p>
+                <AdminToolbar
+                  q={fC.q}
+                  setQ={(v) => setFC({ ...fC, q: v })}
+                  placeholder="Search customers by name, email, phone or city"
+                  count={list.length}
+                  total={CUSTOMERS_SEED.length}
+                  onClear={() =>
+                    setFC({ q: "", city: "All", status: "All", sort: "name" })
+                  }
+                  selects={[
+                    {
+                      label: "Status",
+                      value: fC.status,
+                      onChange: (v) => setFC({ ...fC, status: v }),
+                      options: ["All", "Active", "Blocked"],
+                    },
+                    {
+                      label: "City",
+                      value: fC.city,
+                      onChange: (v) => setFC({ ...fC, city: v }),
+                      options: cities,
+                    },
+                    {
+                      label: "Sort by",
+                      value: fC.sort,
+                      onChange: (v) => setFC({ ...fC, sort: v }),
+                      options: [
+                        { v: "name", l: "Name (A–Z)" },
+                        { v: "rentals", l: "Most rentals" },
+                        { v: "recent", l: "Newest first" },
+                      ],
+                    },
+                  ]}
+                />
+                {list.length === 0 ? (
+                  <EmptyList label="No customers match these filters" />
                 ) : (
-                  <>
-                    <AdminToolbar
-                      q={fC.q}
-                      setQ={(v) => setFC({ ...fC, q: v })}
-                      placeholder="Search customers by name, email, phone or city"
-                      count={list.length}
-                      total={custRows.length}
-                      onClear={() =>
-                        setFC({
-                          q: "",
-                          city: "All",
-                          status: "All",
-                          sort: "name",
-                        })
-                      }
-                      selects={[
-                        {
-                          label: "Status",
-                          value: fC.status,
-                          onChange: (v) => setFC({ ...fC, status: v }),
-                          options: ["All", "Active", "Blocked"],
-                        },
-                        {
-                          label: "City",
-                          value: fC.city,
-                          onChange: (v) => setFC({ ...fC, city: v }),
-                          options: cities,
-                        },
-                        {
-                          label: "Sort by",
-                          value: fC.sort,
-                          onChange: (v) => setFC({ ...fC, sort: v }),
-                          options: [
-                            { v: "name", l: "Name (A–Z)" },
-                            { v: "rentals", l: "Most rentals" },
-                            { v: "recent", l: "Newest first" },
-                          ],
-                        },
-                      ]}
-                    />
-                    {list.length === 0 ? (
-                      <EmptyList label="No customers match these filters" />
-                    ) : (
-                      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                        {list.map((c) => {
-                          const blocked = c.blocked;
-                          return (
-                            <div
-                              key={c.id}
-                              className="br-card rounded-2xl p-5 shadow-sm"
-                              style={
-                                blocked ? { borderColor: "#fca5a5" } : undefined
-                              }
-                            >
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="flex items-center gap-3">
-                                  <span
-                                    className="grid h-11 w-11 shrink-0 place-items-center rounded-full br-display text-sm font-bold text-white"
-                                    style={{
-                                      background: blocked
-                                        ? "#94a3b8"
-                                        : "var(--teal)",
-                                    }}
-                                  >
-                                    {c.name
-                                      .split(" ")
-                                      .map((w) => w[0])
-                                      .slice(0, 2)
-                                      .join("")}
-                                  </span>
-                                  <div className="min-w-0">
-                                    <p className="br-display truncate text-sm font-bold">
-                                      {c.name}
-                                    </p>
-                                    <p
-                                      className="text-xs"
-                                      style={{ color: "var(--mute)" }}
-                                    >
-                                      Joined {c.joined}
-                                    </p>
-                                  </div>
-                                </div>
-                                <StatusTag
-                                  meta={
-                                    blocked
-                                      ? {
-                                          label: "Blocked",
-                                          fg: "#b91c1c",
-                                          bg: "#fee2e2",
-                                        }
-                                      : {
-                                          label: "Active",
-                                          fg: "#15803d",
-                                          bg: "#dcfce7",
-                                        }
-                                  }
-                                />
-                              </div>
-                              <div
-                                className="mt-3 flex flex-col gap-1.5 text-xs"
-                                style={{ color: "#3a4d55" }}
+                  <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                    {list.map((c) => {
+                      const blocked = blockedC.has(c.id);
+                      return (
+                        <div
+                          key={c.id}
+                          className="br-card rounded-2xl p-5 shadow-sm"
+                          style={
+                            blocked ? { borderColor: "#fca5a5" } : undefined
+                          }
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-center gap-3">
+                              <span
+                                className="grid h-11 w-11 shrink-0 place-items-center rounded-full br-display text-sm font-bold text-white"
+                                style={{
+                                  background: blocked
+                                    ? "#94a3b8"
+                                    : "var(--teal)",
+                                }}
                               >
-                                <span className="flex items-center gap-1.5">
-                                  <Mail
-                                    size={13}
-                                    style={{ color: "var(--brand)" }}
-                                  />{" "}
-                                  {c.email}
-                                </span>
-                                <span className="flex items-center gap-1.5">
-                                  <Phone
-                                    size={13}
-                                    style={{ color: "var(--brand)" }}
-                                  />{" "}
-                                  {c.phone === "—" ? "—" : `+91 ${c.phone}`}
-                                </span>
-                                <span className="flex items-center gap-1.5">
-                                  <MapPin
-                                    size={13}
-                                    style={{ color: "var(--brand)" }}
-                                  />{" "}
-                                  {c.city}
-                                </span>
-                                <span className="flex items-center gap-1.5">
-                                  <Bike
-                                    size={13}
-                                    style={{ color: "var(--brand)" }}
-                                  />{" "}
-                                  {c.rentals} completed rentals
-                                </span>
+                                {c.name
+                                  .split(" ")
+                                  .map((w) => w[0])
+                                  .slice(0, 2)
+                                  .join("")}
+                              </span>
+                              <div className="min-w-0">
+                                <p className="br-display truncate text-sm font-bold">
+                                  {c.name}
+                                </p>
+                                <p
+                                  className="text-xs"
+                                  style={{ color: "var(--mute)" }}
+                                >
+                                  Joined {c.joined}
+                                </p>
                               </div>
-                              <button
-                                onClick={() => blockCustomer(c)}
-                                className="br-display mt-4 w-full rounded-xl py-2.5 text-xs font-semibold"
-                                style={
-                                  blocked
-                                    ? {
-                                        border: "1.5px solid var(--brand)",
-                                        color: "var(--brand)",
-                                        background: "#fff",
-                                      }
-                                    : {
-                                        border: "1.5px solid #dc2626",
-                                        color: "#dc2626",
-                                        background: "#fff",
-                                      }
-                                }
-                              >
-                                {blocked
-                                  ? "Unblock customer"
-                                  : "Block customer"}
-                              </button>
                             </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </>
+                            <StatusTag
+                              meta={
+                                blocked
+                                  ? {
+                                      label: "Blocked",
+                                      fg: "#b91c1c",
+                                      bg: "#fee2e2",
+                                    }
+                                  : {
+                                      label: "Active",
+                                      fg: "#15803d",
+                                      bg: "#dcfce7",
+                                    }
+                              }
+                            />
+                          </div>
+                          <div
+                            className="mt-3 flex flex-col gap-1.5 text-xs"
+                            style={{ color: "#3a4d55" }}
+                          >
+                            <span className="flex items-center gap-1.5">
+                              <Mail
+                                size={13}
+                                style={{ color: "var(--brand)" }}
+                              />{" "}
+                              {c.email}
+                            </span>
+                            <span className="flex items-center gap-1.5">
+                              <Phone
+                                size={13}
+                                style={{ color: "var(--brand)" }}
+                              />{" "}
+                              +91 {c.phone}
+                            </span>
+                            <span className="flex items-center gap-1.5">
+                              <MapPin
+                                size={13}
+                                style={{ color: "var(--brand)" }}
+                              />{" "}
+                              {c.city}
+                            </span>
+                            <span className="flex items-center gap-1.5">
+                              <Bike
+                                size={13}
+                                style={{ color: "var(--brand)" }}
+                              />{" "}
+                              {c.rentals} completed rentals
+                            </span>
+                          </div>
+                          <button
+                            onClick={() => {
+                              toggle(setBlockedC)(c.id);
+                              setFlash(
+                                `${c.name} ${blocked ? "unblocked" : "blocked"}.`,
+                              );
+                            }}
+                            className="br-display mt-4 w-full rounded-xl py-2.5 text-xs font-semibold"
+                            style={
+                              blocked
+                                ? {
+                                    border: "1.5px solid var(--brand)",
+                                    color: "var(--brand)",
+                                    background: "#fff",
+                                  }
+                                : {
+                                    border: "1.5px solid #dc2626",
+                                    color: "#dc2626",
+                                    background: "#fff",
+                                  }
+                            }
+                          >
+                            {blocked ? "Unblock customer" : "Block customer"}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
                 )}
               </>
             );

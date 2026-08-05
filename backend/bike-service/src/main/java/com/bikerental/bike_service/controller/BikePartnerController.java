@@ -41,21 +41,24 @@ public class BikePartnerController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<FleetListingDto> updateBikeListing(@PathVariable Integer id, @Valid @RequestBody BikeListingRequestDto requestDto) {
+    public ResponseEntity<FleetListingDto> updateBikeListing(@PathVariable Integer id,
+            @Valid @RequestBody BikeListingRequestDto requestDto) {
         Integer userId = getAuthenticatedUserId();
 
         return ResponseEntity.ok(bikeServices.updateBikeListing(userId, id, requestDto));
     }
 
-    @PatchMapping("/{id}/operational")
-    public ResponseEntity<FleetListingDto> updateOperationalDetails(@PathVariable Integer id, @Valid @RequestBody BikeOperationalUpdateDto requestDto) {
+    @PutMapping("/{id}/operational")
+    public ResponseEntity<FleetListingDto> updateOperationalDetails(@PathVariable Integer id,
+            @Valid @RequestBody BikeOperationalUpdateDto requestDto) {
         Integer userId = getAuthenticatedUserId();
 
         return ResponseEntity.ok(bikeServices.updateOperationalDetails(userId, id, requestDto));
     }
 
-    @PatchMapping("/{id}/status")
-    public ResponseEntity<FleetListingDto> updateBikeStatus(@PathVariable Integer id, @Valid @RequestBody BikeStatusUpdateDto requestDto) {
+    @PutMapping("/{id}/status")
+    public ResponseEntity<FleetListingDto> updateBikeStatus(@PathVariable Integer id,
+            @Valid @RequestBody BikeStatusUpdateDto requestDto) {
         Integer userId = getAuthenticatedUserId();
 
         return ResponseEntity.ok(bikeServices.updateBikeStatus(userId, id, requestDto));
