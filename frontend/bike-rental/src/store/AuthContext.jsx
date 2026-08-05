@@ -17,19 +17,23 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
   const [users, setUsers] = useState(DEMO_USERS); // stands in for the `user` table
+  // True while we're restoring a session from a stored token on load. Lets the app show a
+  // splash instead of briefly rendering the logged-out (login) UI before /auth/me resolves.
+  const [authLoading, setAuthLoading] = useState(() => !!getToken());
 
   const updateSession = (patch) =>
     setSession((prev) => (prev ? { ...prev, ...patch } : prev));
 
-  // Survive a page refresh: if a token is already in localStorage, ask /auth/me for the
+  // Survive a page refresh: if a token is already stored, ask /auth/me for the
   // authoritative session instead of trying to decode anything from the token itself.
   useEffect(() => {
     const token = getToken();
-    if (!token) return;
+    if (!token) {
+      setAuthLoading(false);
+      return;
+    }
     axios
-      .get(`/api/v1/auth/me`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
+      .get(`/api/v1/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
       .then(async (res) => {
         const [customer, kyc] = await Promise.all([
           fetchCustomerProfile(token, res.data),
@@ -44,12 +48,20 @@ export function AuthProvider({ children }) {
       .catch(() => {
         // token is invalid/expired — clear it so the app doesn't think we're logged in
         clearAuth();
-      });
+      })
+      .finally(() => setAuthLoading(false));
   }, []);
 
   return (
     <AuthContext.Provider
-      value={{ session, setSession, users, setUsers, updateSession }}
+      value={{
+        session,
+        setSession,
+        users,
+        setUsers,
+        updateSession,
+        authLoading,
+      }}
     >
       {children}
     </AuthContext.Provider>

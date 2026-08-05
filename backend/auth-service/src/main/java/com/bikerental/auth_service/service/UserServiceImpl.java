@@ -2,14 +2,15 @@ package com.bikerental.auth_service.service;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.Random;
 
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import com.bikerental.auth_service.dto.AdminResponseDTO;
 import com.bikerental.auth_service.dto.ChangePasswordRequest;
+import com.bikerental.auth_service.dto.CreateAdminRequest;
 import com.bikerental.auth_service.dto.ResetPasswordRequest;
 import com.bikerental.auth_service.dto.UpdateProfileRequestDTO;
 import com.bikerental.auth_service.dto.UpdateProfileResponseDTO;
@@ -27,6 +28,7 @@ import com.bikerental.auth_service.repository.UserRepository;
 import com.bikerental.auth_service.repository.UserRoleRepository;
 import com.bikerental.auth_service.util.UserMapper;
 
+import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 
 @Service
@@ -42,6 +44,8 @@ public class UserServiceImpl implements UserService {
 	private final RoleRepository roleRepository;
 
 	private final UserRoleRepository userRoleRepository;
+
+	private final EmailService emailService;
 
 	@Override
 	public UserProfileResponse getUserById(Integer id) {
@@ -119,24 +123,23 @@ public class UserServiceImpl implements UserService {
 	}
 
 	@Override
-	public void forgotPassword(String email) {
+	public String forgotPassword(String email) {
 		// TODO Auto-generated method stub
-		Optional<User> optionalUser = userRepository.findByEmail(email);
+		User user = userRepository.findByEmail(email)
+				.orElseThrow(() -> new UsernameNotFoundException(email));
 
-		if (optionalUser.isEmpty()) {
-			return; // because we don't want attackers discover valid email
-		}
-
-		User user = optionalUser.get();
-
-		String token = UUID.randomUUID().toString();
+		String token = String.valueOf(100000 + new Random().nextInt(900000));
 
 		PasswordResetToken resetToken = PasswordResetToken.builder()
-				.token(token).user(user).used(false)
-				.createdAt(LocalDateTime.now())
-				.expiryTime(LocalDateTime.now().plusMinutes(15)).build();
+				.token(token).user(user)
+				.expiryTime(LocalDateTime.now().plusMinutes(15)).used(false)
+				.createdAt(LocalDateTime.now()).build();
 
 		passwordResetTokenRepository.save(resetToken);
+
+		emailService.sendOtpEmail(user.getEmail(), token);
+
+		return "OTP send Successfully";
 
 	}
 
@@ -153,7 +156,7 @@ public class UserServiceImpl implements UserService {
 		}
 
 		if (token.getExpiryTime().isBefore(LocalDateTime.now())) {
-			throw new RuntimeException("Token expired.");
+			throw new RuntimeException("Inavlid or Token expired.");
 		}
 
 		User user = token.getUser();
@@ -253,6 +256,73 @@ public class UserServiceImpl implements UserService {
 		response.setGender(user.getGender());
 
 		return response;
+	}
+
+	@Transactional
+	@Override
+	public AdminResponseDTO createAdmin(CreateAdminRequest request) {
+
+		if (userRepository.existsByEmail(request.getEmail())) {
+			throw new RuntimeException("Email already exists");
+		}
+
+		User user = new User();
+
+		user.setFirstName(request.getFirstName());
+		user.setLastName(request.getLastName());
+		user.setEmail(request.getEmail());
+		user.setPhoneNumber(request.getPhoneNumber());
+
+		user.setPassword(passwordEncoder.encode(request.getPassword()));
+		user.setCreatedAt(LocalDateTime.now());
+
+		user.setAccountStatus(AccountStatus.ACTIVE);
+
+		userRepository.save(user);
+
+		Role adminRole = roleRepository.findByName("ADMIN").orElseThrow();
+
+		UserRole userRole = new UserRole();
+
+		UserRoleId userRoleId = new UserRoleId();
+
+		userRoleId.setUserId(user.getUserId());
+		userRoleId.setRoleId(adminRole.getRoleId());
+
+		userRole.setId(userRoleId);
+
+		userRole.setUser(user);
+		userRole.setRole(adminRole);
+		userRole.setAssignedAt(LocalDateTime.now());
+		userRole.setAssignedBy(user);
+
+		userRoleRepository.save(userRole);
+
+		return mapToAdminResponse(user);
+
+	}
+
+	private AdminResponseDTO mapToAdminResponse(User user) {
+		// TODO Auto-generated method stub
+
+		AdminResponseDTO response = new AdminResponseDTO();
+
+		response.setAccountStatus(user.getAccountStatus());
+		response.setCreatedAt(user.getCreatedAt());
+		response.setEmail(user.getEmail());
+		response.setFirstName(user.getFirstName());
+		response.setLastName(user.getLastName());
+		response.setPhoneNumber(user.getPhoneNumber());
+		response.setUserId(user.getUserId());
+
+		return response;
+	}
+
+	@Override
+	public List<AdminResponseDTO> getAllAdmins() {
+		// TODO Auto-generated method stub
+		return userRepository.findByUserRoles_Role_Name("ADMIN").stream()
+				.map(this::mapToAdminResponse).toList();
 	}
 
 }

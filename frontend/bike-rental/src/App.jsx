@@ -30,7 +30,7 @@ export default function App() {
   });
   const [selectedBike, setSelectedBike] = useState(BIKES[0]);
   const [selectedDealer, setSelectedDealer] = useState(null);
-  const { session, setSession, users, setUsers } = useAuth();
+  const { session, setSession, users, setUsers, authLoading } = useAuth();
   // Detailed profile fields (KYC, address, business, docs) keyed by userId. The `users`
   // table only holds auth basics, so richer fields live here and are seeded on first open.
   const [profiles, setProfiles] = useState({});
@@ -691,6 +691,30 @@ export default function App() {
     session.roles?.includes(ROLE.CUSTOMER) &&
     session.kycStatus !== "VERIFIED" &&
     !["login", "register", "identity"].includes(page);
+
+  // While a stored token is being verified on load, hold a splash so we never flash the
+  // logged-out (login) UI or run role redirects before the session is known.
+  if (authLoading) {
+    return (
+      <div className="br-root grid min-h-screen place-items-center">
+        <Styles />
+        <div className="flex flex-col items-center gap-3">
+          <span
+            className="grid h-12 w-12 animate-pulse place-items-center rounded-xl text-white br-display text-lg font-bold"
+            style={{ background: "var(--brand)" }}
+          >
+            BR
+          </span>
+          <span
+            className="br-display text-sm font-semibold"
+            style={{ color: "var(--mute)" }}
+          >
+            Loading…
+          </span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="br-root min-h-screen pt-16">

@@ -30,6 +30,7 @@ export function LoginPage({
   users = DEMO_USERS,
   onSocial,
   onResetPassword,
+  onForgotPassword,
 }) {
   // Prefilled with the first demo account so the prototype is one click from a session.
   const [email, setEmail] = useState(DEMO_LOGINS[0].email);
@@ -114,6 +115,7 @@ export function LoginPage({
         presetEmail={email}
         onBack={() => setView("login")}
         onResetPassword={onResetPassword}
+        onForgotPassword={onForgotPassword}
       />
     );
 

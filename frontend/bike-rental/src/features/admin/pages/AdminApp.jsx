@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import { ADMIN_TABS, CAT_GRADIENT } from "../../../constants";
 import { inr } from "../../../lib/money.js";
-import { ADMINS_SEED, BIKES, CUSTOMERS_SEED, DEALERS } from "../../../mock";
+import { BIKES, CUSTOMERS_SEED, DEALERS } from "../../../mock";
 import { BikeImage, Chip, EmptyList, StatusTag } from "../../../ui";
 import {
   AddAdminModal,
@@ -36,6 +36,22 @@ import {
   RejectReasonModal,
 } from "../components";
 import { KycReviewPage } from "./KycReviewPage.jsx";
+
+// Map an AdminKycResponseDTO row to the shape the Verify-Riders list renders.
+const kycToView = (r) => ({
+  id: r.customerId, // path param for approve/reject
+  name:
+    `${r.firstName || ""} ${r.lastName || ""}`.trim() ||
+    `Customer #${r.customerId}`,
+  email: r.email,
+  phone: r.phoneNumber,
+  dl: r.drivingLicenseNumber,
+  idType: r.idType,
+  idNumber: r.idNumber,
+  idFileUrl: r.idUploadUrl,
+  dlFileUrl: r.drivingLicenseUrl,
+  submittedAt: r.createdAt || r.updatedAt,
+});
 
 export function AdminApp({
   session,
@@ -48,35 +64,188 @@ export function AdminApp({
   adminAction,
 }) {
   const [reviewBike, setReviewBike] = useState(null); // listing open in the review modal
-  const [admins, setAdmins] = useState(ADMINS_SEED);
+  const [admins, setAdmins] = useState([]);
+  const [adminsLoading, setAdminsLoading] = useState(true);
+  // Real admin list (GET /api/v1/admin/admins). Refetched after create/remove.
+  const loadAdmins = () => {
+    setAdminsLoading(true);
+    axios
+      .get(`/api/v1/admin/admins`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      })
+      .then((res) =>
+        setAdmins(
+          (res.data || []).map((a) => ({
+            id: a.userId,
+            name:
+              `${a.firstName || ""} ${a.lastName || ""}`.trim() ||
+              `Admin #${a.userId}`,
+            email: a.email,
+            phone: a.phoneNumber,
+            designation: "Admin",
+            access: [
+              "Dealer approvals",
+              "Bike approvals",
+              "Disputes",
+              "User management",
+            ],
+            added: a.createdAt
+              ? new Date(a.createdAt).toLocaleDateString("en-IN", {
+                  month: "short",
+                  year: "numeric",
+                })
+              : "—",
+            superAdmin: a.userId === session?.userId, // you can't remove your own admin access
+          })),
+        ),
+      )
+      .catch(() => {})
+      .finally(() => setAdminsLoading(false));
+  };
+  useEffect(() => {
+    loadAdmins();
+  }, []);
   const [showAddAdmin, setShowAddAdmin] = useState(false);
   const [showAdmins, setShowAdmins] = useState(false); // admin-team panel (opened from profile menu)
-  const [kycPending, setKycPending] = useState(0); // count for the "Verify Riders" tab badge
-  const addAdmin = (a) => {
-    const created = {
-      id: Date.now(),
-      designation: "Admin",
-      access: [
-        "Dealer approvals",
-        "Bike approvals",
-        "Disputes",
-        "User management",
-      ],
-      status: "Active",
-      added: new Date().toLocaleDateString("en-IN", {
-        month: "short",
-        year: "numeric",
-      }),
-      ...a,
-    };
-    setAdmins((p) => [...p, created]);
-    setFlash(`${a.name} added as an admin.`);
+  const [kycPending, setKycPending] = useState(0); // (kept for compatibility; badge derives from pending.length)
+  // Admin dashboard counts (GET /api/v1/admin/customers/dashboard)
+  const [stats, setStats] = useState(null);
+  const loadStats = () =>
+    axios
+      .get(`/api/v1/admin/customers/dashboard`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      })
+      .then((res) => setStats(res.data))
+      .catch(() => {});
+  useEffect(() => {
+    loadStats();
+  }, []);
+
+  // Pending KYC — fetched ONCE and held here (AdminApp doesn't unmount on tab switch), then
+  // mutated locally on approve/reject. No refetch when you flip between tabs.
+  const [pending, setPending] = useState([]);
+  const [kycLoading, setKycLoading] = useState(true);
+  const [kycErr, setKycErr] = useState("");
+  const [docErr, setDocErr] = useState("");
+  const loadPending = () => {
+    setKycLoading(true);
+    setKycErr("");
+    axios
+      .get(`/api/v1/admin/kyc/pending`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      })
+      .then((res) => setPending((res.data || []).map(kycToView)))
+      .catch((e) =>
+        setKycErr(
+          e.response?.status === 403
+            ? "Not authorized — this account isn't an admin."
+            : "Could not load pending submissions.",
+        ),
+      )
+      .finally(() => setKycLoading(false));
   };
+  useEffect(() => {
+    loadPending();
+  }, []);
+  const viewDoc = async (objectName) => {
+    if (!objectName) {
+      setDocErr("No document on file.");
+      return;
+    }
+    setDocErr("");
+    try {
+      const res = await axios.get(
+        `/api/v1/admin/customers/storage/download-url`,
+        {
+          params: { objectName },
+          headers: { Authorization: `Bearer ${getToken()}` },
+        },
+      );
+      if (res.data?.downloadUrl)
+        window.open(res.data.downloadUrl, "_blank", "noopener,noreferrer");
+      else setDocErr("Could not open document.");
+    } catch {
+      setDocErr("Could not open document.");
+    }
+  };
+  const approveKyc = (id) =>
+    axios
+      .put(
+        `/api/v1/admin/kyc/customers/${id}/approve`,
+        {},
+        { headers: { Authorization: `Bearer ${getToken()}` } },
+      )
+      .then(() => {
+        setPending((p) => p.filter((r) => r.id !== id));
+        setStats((s) =>
+          s
+            ? {
+                ...s,
+                pendingKyc: Math.max(0, (s.pendingKyc || 0) - 1),
+                verifiedKyc: (s.verifiedKyc || 0) + 1,
+              }
+            : s,
+        );
+        setFlash("Rider verified.");
+        loadStats();
+      })
+      .catch(() => setFlash("Could not approve this submission."));
+  const rejectKyc = (id, rejectionReason) =>
+    axios
+      .put(
+        `/api/v1/admin/kyc/customers/${id}/reject`,
+        { rejectionReason },
+        { headers: { Authorization: `Bearer ${getToken()}` } },
+      )
+      .then(() => {
+        setPending((p) => p.filter((r) => r.id !== id));
+        setStats((s) =>
+          s
+            ? {
+                ...s,
+                pendingKyc: Math.max(0, (s.pendingKyc || 0) - 1),
+                rejectedKyc: (s.rejectedKyc || 0) + 1,
+              }
+            : s,
+        );
+        setFlash("Submission rejected.");
+        loadStats();
+      })
+      .catch(() => setFlash("Could not reject this submission."));
+  // Create an admin: POST /api/v1/admin/admins { firstName, lastName, email, phoneNumber, password }
+  // creates the user AND assigns the ADMIN role server-side, then we refetch the list.
+  const addAdmin = async (payload) => {
+    try {
+      await axios.post(`/api/v1/admin/admins`, payload, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      setFlash(`${payload.firstName} added as an admin.`);
+      loadAdmins();
+      return { ok: true };
+    } catch (err) {
+      return {
+        ok: false,
+        error: err.response?.data?.message || "Could not create the admin.",
+      };
+    }
+  };
+  // Remove admin access = demote (PUT /api/v1/admin/users/{userId}/demote).
   const removeAdmin = (id) => {
     const a = admins.find((x) => x.id === id);
     if (a?.superAdmin) return;
-    setAdmins((p) => p.filter((x) => x.id !== id));
-    setFlash(`${a?.name || "Admin"} removed.`);
+    if (!window.confirm(`Remove admin access from ${a?.name || "this admin"}?`))
+      return;
+    axios
+      .put(
+        `/api/v1/admin/users/${id}/demote`,
+        {},
+        { headers: { Authorization: `Bearer ${getToken()}` } },
+      )
+      .then(() => {
+        setFlash(`${a?.name || "Admin"} removed.`);
+        loadAdmins();
+      })
+      .catch(() => setFlash("Could not remove admin access."));
   };
   // The profile-menu items live outside this component, so App relays them as a signal.
   useEffect(() => {
@@ -171,8 +340,24 @@ export function AdminApp({
         { headers: { Authorization: `Bearer ${getToken()}` } },
       )
       .then(() => {
+        setCustRows((rows) =>
+          rows.map((c) =>
+            c.id === row.id ? { ...c, blocked: !row.blocked } : c,
+          ),
+        );
+        setStats((s) =>
+          s
+            ? {
+                ...s,
+                blockedUsers: Math.max(
+                  0,
+                  (s.blockedUsers || 0) + (row.blocked ? -1 : 1),
+                ),
+              }
+            : s,
+        );
         setFlash(`${row.name} ${row.blocked ? "unblocked" : "blocked"}.`);
-        loadCustomers();
+        loadStats();
       })
       .catch(() => setFlash("Could not update customer status."));
   };
@@ -241,7 +426,7 @@ export function AdminApp({
         : k === "disputes"
           ? openDisputes.length
           : k === "kyc"
-            ? kycPending
+            ? pending.length
             : 0;
 
   return (
@@ -261,6 +446,36 @@ export function AdminApp({
           <ShieldCheck size={15} /> {session?.name || "Administrator"}
         </span>
       </div>
+
+      {/* live counts (GET /api/v1/admin/customers/dashboard) */}
+      {stats && (
+        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          {[
+            { label: "Total users", value: stats.totalUsers },
+            { label: "Customers", value: stats.totalCustomers },
+            {
+              label: "Pending KYC",
+              value: stats.pendingKyc,
+              accent: "#b45309",
+            },
+            { label: "Verified", value: stats.verifiedKyc, accent: "#15803d" },
+            { label: "Rejected", value: stats.rejectedKyc, accent: "#b91c1c" },
+            { label: "Blocked", value: stats.blockedUsers, accent: "#b91c1c" },
+          ].map((s) => (
+            <div key={s.label} className="br-card rounded-2xl p-4 shadow-sm">
+              <p
+                className="br-display text-2xl font-bold"
+                style={{ color: s.accent || "var(--ink)" }}
+              >
+                {s.value ?? "—"}
+              </p>
+              <p className="text-xs" style={{ color: "var(--mute)" }}>
+                {s.label}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* horizontal menu */}
       <div className="br-scroll mt-5 flex gap-2 overflow-x-auto pb-1">
@@ -604,7 +819,17 @@ export function AdminApp({
         )}
 
         {/* Verify Riders (KYC) */}
-        {tab === "kyc" && <KycReviewPage onCountChange={setKycPending} />}
+        {tab === "kyc" && (
+          <KycReviewPage
+            rows={pending}
+            loading={kycLoading}
+            err={kycErr}
+            docErr={docErr}
+            onView={viewDoc}
+            onApprove={approveKyc}
+            onReject={rejectKyc}
+          />
+        )}
 
         {/* Dealers — manage + block */}
         {tab === "allDealers" &&
@@ -1226,107 +1451,120 @@ export function AdminApp({
               </div>
             </div>
             <div className="br-scroll min-h-0 flex-1 overflow-y-auto p-5">
-              <div className="grid gap-4 sm:grid-cols-2">
-                {admins.map((a) => (
-                  <div
-                    key={a.id}
-                    className="br-card flex flex-col rounded-2xl p-5 shadow-sm"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span
-                        className="grid h-11 w-11 place-items-center rounded-xl br-display text-sm font-bold text-white"
-                        style={{
-                          background: a.superAdmin
-                            ? "linear-gradient(135deg,#b91c1c,#ef4444)"
-                            : "linear-gradient(135deg,var(--brand),var(--brand-2))",
-                        }}
-                      >
-                        {a.name
-                          .split(" ")
-                          .map((w) => w[0])
-                          .slice(0, 2)
-                          .join("")}
-                      </span>
-                      <div className="min-w-0">
-                        <p className="br-display truncate text-sm font-bold">
-                          {a.name}
-                        </p>
-                        <p
-                          className="truncate text-xs"
-                          style={{ color: "var(--mute)" }}
-                        >
-                          {a.designation || "Admin"}
-                        </p>
-                      </div>
-                      {a.superAdmin && (
-                        <span
-                          className="ml-auto shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold"
-                          style={{ background: "#fee2e2", color: "#b91c1c" }}
-                        >
-                          Super Admin
-                        </span>
-                      )}
-                    </div>
+              {adminsLoading ? (
+                <p className="text-sm" style={{ color: "var(--mute)" }}>
+                  Loading admins…
+                </p>
+              ) : admins.length === 0 ? (
+                <p className="text-sm" style={{ color: "var(--mute)" }}>
+                  No admins yet.
+                </p>
+              ) : (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {admins.map((a) => (
                     <div
-                      className="mt-3 flex flex-col gap-1.5 text-xs"
-                      style={{ color: "#3a4d55" }}
+                      key={a.id}
+                      className="br-card flex flex-col rounded-2xl p-5 shadow-sm"
                     >
-                      <span className="flex items-center gap-1.5">
-                        <Mail size={13} style={{ color: "var(--brand)" }} />{" "}
-                        {a.email}
-                      </span>
-                      {(a.dept || a.empId) && (
+                      <div className="flex items-center gap-3">
+                        <span
+                          className="grid h-11 w-11 place-items-center rounded-xl br-display text-sm font-bold text-white"
+                          style={{
+                            background: a.superAdmin
+                              ? "linear-gradient(135deg,#b91c1c,#ef4444)"
+                              : "linear-gradient(135deg,var(--brand),var(--brand-2))",
+                          }}
+                        >
+                          {a.name
+                            .split(" ")
+                            .map((w) => w[0])
+                            .slice(0, 2)
+                            .join("")}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="br-display truncate text-sm font-bold">
+                            {a.name}
+                          </p>
+                          <p
+                            className="truncate text-xs"
+                            style={{ color: "var(--mute)" }}
+                          >
+                            {a.designation || "Admin"}
+                          </p>
+                        </div>
+                        {a.superAdmin && (
+                          <span
+                            className="ml-auto shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold"
+                            style={{ background: "#fee2e2", color: "#b91c1c" }}
+                          >
+                            Super Admin
+                          </span>
+                        )}
+                      </div>
+                      <div
+                        className="mt-3 flex flex-col gap-1.5 text-xs"
+                        style={{ color: "#3a4d55" }}
+                      >
                         <span className="flex items-center gap-1.5">
-                          <Briefcase
+                          <Mail size={13} style={{ color: "var(--brand)" }} />{" "}
+                          {a.email}
+                        </span>
+                        {(a.dept || a.empId) && (
+                          <span className="flex items-center gap-1.5">
+                            <Briefcase
+                              size={13}
+                              style={{ color: "var(--brand)" }}
+                            />{" "}
+                            {[a.dept, a.empId].filter(Boolean).join(" · ")}
+                          </span>
+                        )}
+                        <span className="flex items-center gap-1.5">
+                          <Calendar
                             size={13}
                             style={{ color: "var(--brand)" }}
                           />{" "}
-                          {[a.dept, a.empId].filter(Boolean).join(" · ")}
+                          Added {a.added}
+                          {a.twofa ? " · 2FA on" : ""}
                         </span>
-                      )}
-                      <span className="flex items-center gap-1.5">
-                        <Calendar size={13} style={{ color: "var(--brand)" }} />{" "}
-                        Added {a.added}
-                        {a.twofa ? " · 2FA on" : ""}
-                      </span>
-                    </div>
-                    <div className="mt-2.5 flex flex-wrap gap-1">
-                      {a.access.map((ac) => (
-                        <span
-                          key={ac}
-                          className="rounded-md px-1.5 py-0.5 text-[10px] font-semibold"
+                      </div>
+                      <div className="mt-2.5 flex flex-wrap gap-1">
+                        {a.access.map((ac) => (
+                          <span
+                            key={ac}
+                            className="rounded-md px-1.5 py-0.5 text-[10px] font-semibold"
+                            style={{
+                              background: "var(--form-bg)",
+                              color: "var(--brand-strong)",
+                            }}
+                          >
+                            {ac}
+                          </span>
+                        ))}
+                      </div>
+                      {a.superAdmin ? (
+                        <p
+                          className="mt-4 text-center text-[11px]"
+                          style={{ color: "var(--mute)" }}
+                        >
+                          The super admin can't be removed.
+                        </p>
+                      ) : (
+                        <button
+                          onClick={() => removeAdmin(a.id)}
+                          className="br-display mt-4 w-full rounded-xl py-2 text-xs font-semibold"
                           style={{
-                            background: "var(--form-bg)",
-                            color: "var(--brand-strong)",
+                            border: "1.5px solid #dc2626",
+                            color: "#dc2626",
+                            background: "#fff",
                           }}
                         >
-                          {ac}
-                        </span>
-                      ))}
+                          Remove access
+                        </button>
+                      )}
                     </div>
-                    {a.superAdmin ? (
-                      <p
-                        className="mt-4 text-center text-[11px]"
-                        style={{ color: "var(--mute)" }}
-                      >
-                        The super admin can't be removed.
-                      </p>
-                    ) : (
-                      <button
-                        onClick={() => removeAdmin(a.id)}
-                        className="br-display mt-4 w-full rounded-xl py-2 text-xs font-semibold"
-                        style={{
-                          border: "1.5px solid #dc2626",
-                          color: "#dc2626",
-                          background: "#fff",
-                        }}
-                      >
-                        Remove access
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

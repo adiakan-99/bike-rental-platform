@@ -2,7 +2,9 @@ package com.bikerental.auth_service.service;
 
 import java.util.List;
 
+import com.bikerental.auth_service.dto.AdminResponseDTO;
 import com.bikerental.auth_service.dto.ChangePasswordRequest;
+import com.bikerental.auth_service.dto.CreateAdminRequest;
 import com.bikerental.auth_service.dto.ResetPasswordRequest;
 import com.bikerental.auth_service.dto.UpdateProfileRequestDTO;
 import com.bikerental.auth_service.dto.UpdateProfileResponseDTO;
@@ -24,7 +26,7 @@ public interface UserService {
 
 	void changePassword(String email, ChangePasswordRequest request);
 
-	void forgotPassword(String email);
+	String forgotPassword(String email);
 
 	void resetPassword(ResetPasswordRequest request);
 
@@ -36,4 +38,8 @@ public interface UserService {
 
 	UpdateProfileResponseDTO updateProfile(Integer userId,
 			UpdateProfileRequestDTO request);
+
+	AdminResponseDTO createAdmin(CreateAdminRequest request);
+
+	List<AdminResponseDTO> getAllAdmins();
 }

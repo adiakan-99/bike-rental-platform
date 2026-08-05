@@ -72,15 +72,20 @@ public class AuthController {
 			Authentication authentication) {
 		String email = authentication.getName();
 		userService.changePassword(email, request);
-		return ResponseEntity
-				.ok(Map.of("message", "Password updated successfully"));
+		return ResponseEntity.ok(Map.of("message",
+				"If an accoutn Exists, Reset instructions have beeen generated"));
 	}
 
 	@PostMapping("/forgot-password")
 	public ResponseEntity<?> forgotPassword(
 			@Valid @RequestBody ForgotPasswordRequest request) {
-		return ResponseEntity.ok(Map.of("message",
-				"If an account exists, a password reset link has been sent"));
+
+		// String token = userService.forgotPassword(request.getEmail());
+
+		userService.forgotPassword(request.getEmail());
+
+		return ResponseEntity.ok(
+				Map.of("message", "OTP sent successfully to registered email"));
 	}
 
 	@PostMapping("/reset-password")
@@ -99,8 +104,8 @@ public class AuthController {
 		CustomUserDetails userDetails = (CustomUserDetails) authentication
 				.getPrincipal();
 
-		return ResponseEntity
-				.ok(userService.updateProfile(userDetails.getUserId(), request));
+		return ResponseEntity.ok(
+				userService.updateProfile(userDetails.getUserId(), request));
 
 	}
 
