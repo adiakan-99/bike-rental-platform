@@ -1,16 +1,6 @@
-// AUTO-EXTRACTED (verbatim) from BikeRentalSite_optimisedUI.jsx — do not edit logic.
 import { useState } from "react";
 import axios from "axios";
-import {
-  AlertCircle,
-  Bike,
-  ChevronDown,
-  Eye,
-  EyeOff,
-  Lock,
-  Mail,
-  Sparkles,
-} from "lucide-react";
+import { AlertCircle, Bike, Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { RX } from "../../../lib/validation.js";
 import {
   normalizeSession,
@@ -20,35 +10,24 @@ import {
   normalizeKyc,
 } from "../../../lib/session.js";
 import { setAuth } from "../../../lib/Authstorage.js";
-import { DEMO_LOGINS, DEMO_USERS } from "../../../mock";
 import { Field } from "../../../ui";
 import { ForgotPasswordCard, SocialButtons } from "../components";
 
 export function LoginPage({
   onRegister,
   onDone,
-  users = DEMO_USERS,
   onSocial,
   onResetPassword,
   onForgotPassword,
 }) {
-  // Prefilled with the first demo account so the prototype is one click from a session.
-  const [email, setEmail] = useState(DEMO_LOGINS[0].email);
-  const [pw, setPw] = useState("demo123");
+  const [email, setEmail] = useState("");
+  const [pw, setPw] = useState("");
   const [show, setShow] = useState(false);
   const [t, setT] = useState({});
   const [authErr, setAuthErr] = useState("");
   const [busy, setBusy] = useState(false);
   const [view, setView] = useState("login"); // login | forgot
   const [remember, setRemember] = useState(true); // Remember me: localStorage vs sessionStorage
-  const [demoOpen, setDemoOpen] = useState(false);
-  const fillDemo = (demoEmail) => {
-    setEmail(demoEmail);
-    setPw("demo123");
-    setAuthErr("");
-    setT({});
-    setDemoOpen(false);
-  };
   const eErr = !email
     ? "Email is required."
     : !RX.email.test(email)
@@ -226,80 +205,6 @@ export function LoginPage({
           <div className="h-px flex-1" style={{ background: "var(--line)" }} />
         </div>
         <SocialButtons compact />
-
-        <div
-          className="mt-5 overflow-hidden rounded-xl"
-          style={{ border: "1px solid var(--line)" }}
-        >
-          <button
-            type="button"
-            onClick={() => setDemoOpen((o) => !o)}
-            className="br-display flex w-full items-center justify-between px-4 py-3 text-sm font-semibold"
-            style={{ background: "var(--form-bg)" }}
-          >
-            <span className="flex items-center gap-2">
-              <Sparkles size={15} style={{ color: "var(--brand)" }} /> Demo
-              accounts{" "}
-              <span className="font-normal" style={{ color: "var(--mute)" }}>
-                (password: demo123)
-              </span>
-            </span>
-            <ChevronDown
-              size={16}
-              style={{
-                color: "var(--mute)",
-                transform: demoOpen ? "rotate(180deg)" : "none",
-                transition: "transform .2s",
-              }}
-            />
-          </button>
-          {demoOpen && (
-            <div
-              className="flex flex-col"
-              style={{ borderTop: "1px solid var(--line)" }}
-            >
-              {DEMO_LOGINS.map((d) => (
-                <button
-                  key={d.email}
-                  type="button"
-                  onClick={() => fillDemo(d.email)}
-                  className="br-demo-row flex items-center justify-between gap-3 px-4 py-2.5 text-left"
-                  style={{ borderTop: "1px solid var(--line)" }}
-                >
-                  <div className="min-w-0">
-                    <p
-                      className="truncate text-sm font-medium"
-                      style={{ color: "var(--ink)" }}
-                    >
-                      {d.email}
-                    </p>
-                    <p
-                      className="truncate text-xs"
-                      style={{ color: "var(--mute)" }}
-                    >
-                      {d.desc}
-                    </p>
-                  </div>
-                  <span
-                    className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold"
-                    style={{ background: d.tone.bg, color: d.tone.fg }}
-                  >
-                    {d.label}
-                  </span>
-                </button>
-              ))}
-              <p
-                className="px-4 py-2.5 text-[11px]"
-                style={{
-                  color: "var(--mute)",
-                  borderTop: "1px solid var(--line)",
-                }}
-              >
-                Tap any account to fill the form, then press Login.
-              </p>
-            </div>
-          )}
-        </div>
 
         <p
           className="mt-5 text-center text-sm"
