@@ -16,37 +16,41 @@ import java.util.Optional;
 
 @Repository
 public interface BikeRepository extends JpaRepository<Bike, Integer> {
-    List<Bike> findByPartnerIdAndDeletedAtIsNull(Integer partnerId);
-    boolean existsByRegistrationNumber(String registrationNumber);
-    Optional<Bike> findByBikeIdAndPartnerIdAndDeletedAtIsNull(Integer bikeId, Integer partnerId);
-    Page<Bike> findByApprovalStatusAndDeletedAtIsNull(ApprovalStatus approvalStatus, Pageable pageable);
-    @Query("SELECT b FROM Bike b JOIN b.bikeDetails d WHERE " +
-            "b.approvalStatus = com.bikerental.bike_service.enums.ApprovalStatus.APPROVED AND " +
-            "b.bikeStatus = com.bikerental.bike_service.enums.BikeStatus.AVAILABLE AND " +
-            "b.deletedAt IS NULL AND " +
-            "(COALESCE(:partnerIds) IS NULL OR b.partnerId IN :partnerIds) AND " +
-            "(:manufacturer IS NULL OR LOWER(b.manufacturer) = LOWER(CAST(:manufacturer AS string))) AND " +
-            "(:category IS NULL OR LOWER(d.bikeCategory) = LOWER(CAST(:category AS string))) AND " +
-            "(:minPrice IS NULL OR b.hourlyRate >= :minPrice) AND " +
-            "(:maxPrice IS NULL OR b.hourlyRate <= :maxPrice)")
-    Page<Bike> searchBikes(
-            @Param("partnerIds") List<Integer> partnerIds,
-            @Param("excludedBikeIds") List<Integer> excludedBikeIds,
-            @Param("manufacturer") String manufacturer,
-            @Param("category") String category,
-            @Param("minPrice") BigDecimal minPrice,
-            @Param("maxPrice") BigDecimal maxPrice,
-            Pageable pageable
-    );
-    Optional<Bike> findByBikeIdAndApprovalStatusAndBikeStatusAndDeletedAtIsNull(
-            Integer bikeId,
-            ApprovalStatus approvalStatus,
-            BikeStatus bikeStatus
-    );
+        List<Bike> findByPartnerIdAndDeletedAtIsNull(Integer partnerId);
 
-    List<Bike> findByBikeIdInAndApprovalStatusAndBikeStatusAndDeletedAtIsNull(
-            List<Integer> bikeIds,
-            ApprovalStatus approvalStatus,
-            BikeStatus bikeStatus
-    );
+        boolean existsByRegistrationNumber(String registrationNumber);
+
+        Page<Bike> findByDeletedAtIsNull(Pageable pageable);
+
+        Optional<Bike> findByBikeIdAndPartnerIdAndDeletedAtIsNull(Integer bikeId, Integer partnerId);
+
+        Page<Bike> findByApprovalStatusAndDeletedAtIsNull(ApprovalStatus approvalStatus, Pageable pageable);
+
+        @Query("SELECT b FROM Bike b JOIN b.bikeDetails d WHERE " +
+                        "b.approvalStatus = com.bikerental.bike_service.enums.ApprovalStatus.APPROVED AND " +
+                        "b.bikeStatus = com.bikerental.bike_service.enums.BikeStatus.AVAILABLE AND " +
+                        "b.deletedAt IS NULL AND " +
+                        "(COALESCE(:partnerIds) IS NULL OR b.partnerId IN :partnerIds) AND " +
+                        "(:manufacturer IS NULL OR LOWER(b.manufacturer) = LOWER(CAST(:manufacturer AS string))) AND " +
+                        "(:category IS NULL OR LOWER(d.bikeCategory) = LOWER(CAST(:category AS string))) AND " +
+                        "(:minPrice IS NULL OR b.hourlyRate >= :minPrice) AND " +
+                        "(:maxPrice IS NULL OR b.hourlyRate <= :maxPrice)")
+        Page<Bike> searchBikes(
+                        @Param("partnerIds") List<Integer> partnerIds,
+                        @Param("excludedBikeIds") List<Integer> excludedBikeIds,
+                        @Param("manufacturer") String manufacturer,
+                        @Param("category") String category,
+                        @Param("minPrice") BigDecimal minPrice,
+                        @Param("maxPrice") BigDecimal maxPrice,
+                        Pageable pageable);
+
+        Optional<Bike> findByBikeIdAndApprovalStatusAndBikeStatusAndDeletedAtIsNull(
+                        Integer bikeId,
+                        ApprovalStatus approvalStatus,
+                        BikeStatus bikeStatus);
+
+        List<Bike> findByBikeIdInAndApprovalStatusAndBikeStatusAndDeletedAtIsNull(
+                        List<Integer> bikeIds,
+                        ApprovalStatus approvalStatus,
+                        BikeStatus bikeStatus);
 }

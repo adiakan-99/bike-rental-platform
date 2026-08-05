@@ -149,6 +149,26 @@ export const fleetDtoToListing = (d) => {
 // This DTO gives you partnerId but NOT the partner's name, so `owner`/`type`
 // need a partner-service lookup. Pass one in when you have it; until then the
 // table shows "Partner #12".
+
+
+export const adminBikeDtoToRow = (d) => ({
+  id: d.bikeId,
+  partnerId: d.partnerId,
+  name: [d.manufacturer, d.model].filter(Boolean).join(" "),
+  mf: d.manufacturer,
+  cat: d.category,
+  cc: d.engineCc ?? 0,
+  trans: d.transmission,
+  price: Number(d.hourlyRate) || 0,
+  deposit: Number(d.securityDeposit) || 0,
+  reg: d.registrationNumber,
+  image: d.primaryImageUrl || null,
+  status: d.bikeStatus,
+  approval: d.approvalStatus,
+  createdAt: d.createdAt,
+});
+
+
 export const pendingBikeDtoToRow = (d, partnerLookup = {}) => {
   const p = partnerLookup[d.partnerId];
   const kindOf = (url = "") => (/\.(jpe?g|png|webp)$/i.test(url) ? "image" : "pdf");

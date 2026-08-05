@@ -40,6 +40,13 @@ export const checkAvailability = (id, startDate, endDate) =>
     .get(`${BASE}/public/${id}/availability`, { params: { startDate, endDate } })
     .then((r) => r.data);
 
+
+// GET /admin/bikes -> PageAdminBikeRowDto
+export const getAllBikesAdmin = ({ page = 0, size = 100, sort } = {}) =>
+  bikeHttp
+    .get(`${BASE}/admin/bikes`, { params: { page, size, sort } })
+    .then((r) => r.data);
+
 // GET /public/compare?ids=1&ids=2 -> BikeDetailDto[]
 // `indexes: null` makes axios send ids=1&ids=2 instead of ids[]=1&ids[]=2,
 // which is what Spring expects for a List<Integer> request param.

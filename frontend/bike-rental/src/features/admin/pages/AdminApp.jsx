@@ -1,8 +1,7 @@
-// AUTO-EXTRACTED (verbatim) from BikeRentalSite_optimisedUI.jsx — do not edit logic.
-// MODIFIED: added the "kyc" (Verify Riders) tab — see KycReviewPage import, kycPending state,
-// badgeFor(), and the new {tab === "kyc" && ...} block below. Everything else is unchanged.
 import { useEffect, useState } from "react";
 import partnerApi from "../../../api/partnerApi";
+
+import { useAllBikes } from "../hooks/useAllBikes";
 
 import axios from "axios";
 import { getToken } from "../../../lib/authStorage.js";
@@ -27,7 +26,7 @@ import {
 } from "lucide-react";
 import { ADMIN_TABS, CAT_GRADIENT } from "../../../constants";
 import { inr } from "../../../lib/money.js";
-import { BIKES, CUSTOMERS_SEED, DEALERS } from "../../../mock";
+import { CUSTOMERS_SEED, DEALERS } from "../../../mock";
 import { BikeImage, Chip, EmptyList, StatusTag } from "../../../ui";
 import {
   AddAdminModal,
@@ -107,6 +106,13 @@ export function AdminApp({
   useEffect(() => {
     loadAdmins();
   }, []);
+
+  const {
+    rows: allBikes,
+    loading: bikesLoading,
+    error: bikesErr,
+  } = useAllBikes();
+
   const [showAddAdmin, setShowAddAdmin] = useState(false);
   const [showAdmins, setShowAdmins] = useState(false); // admin-team panel (opened from profile menu)
   const [kycPending, setKycPending] = useState(0); // (kept for compatibility; badge derives from pending.length)
@@ -266,7 +272,6 @@ export function AdminApp({
   const [flash, setFlash] = useState("");
   const [blockedD, setBlockedD] = useState(new Set());
   const [blockedC, setBlockedC] = useState(new Set());
-  const [blockedB, setBlockedB] = useState(new Set());
   const toggle = (setter) => (id) =>
     setter((p) => {
       const s = new Set(p);
@@ -405,7 +410,6 @@ export function AdminApp({
       .catch(() => setFlash("Could not update customer status."));
   };
 
-  // Rejections route through a reason-capture modal first.
   // Rejections route through a reason-capture modal first.
   const [rejectTarget, setRejectTarget] = useState(null); // { kind, id, name }
   const askRejectDealer = (id) => {
@@ -796,6 +800,140 @@ export function AdminApp({
           </>
         )}
 
+        {/* All Bikes Management Tab */}
+        {tab === "allBikes" &&
+          (() => {
+            const cats = [
+              "All",
+              ...Array.from(new Set(allBikes.map((b) => b.cat))),
+            ];
+            const list = allBikes
+              .filter((b) => {
+                if (fB.q) {
+                  const hay =
+                    `${b.name} ${b.mf} ${b.cat} ${b.reg || ""}`.toLowerCase();
+                  if (!hay.includes(fB.q.toLowerCase())) return false;
+                }
+                if (fB.cat !== "All" && b.cat !== fB.cat) return false;
+                if (fB.status !== "All" && b.approval !== fB.status)
+                  return false;
+                return true;
+              })
+              .sort((a, b) => {
+                if (fB.sort === "price") return a.price - b.price;
+                return a.name.localeCompare(b.name);
+              });
+
+            return (
+              <div>
+                <AdminToolbar
+                  q={fB.q}
+                  setQ={(v) => setFB({ ...fB, q: v })}
+                  placeholder="Search bike, manufacturer, reg…"
+                  count={list.length}
+                  total={allBikes.length}
+                  onClear={() =>
+                    setFB({ q: "", cat: "All", status: "All", sort: "name" })
+                  }
+                  selects={[
+                    {
+                      label: "Status",
+                      value: fB.status,
+                      onChange: (v) => setFB({ ...fB, status: v }),
+                      options: ["All", "PENDING", "APPROVED", "REJECTED"],
+                    },
+                    {
+                      label: "Category",
+                      value: fB.cat,
+                      onChange: (v) => setFB({ ...fB, cat: v }),
+                      options: cats,
+                    },
+                    {
+                      label: "Sort by",
+                      value: fB.sort,
+                      onChange: (v) => setFB({ ...fB, sort: v }),
+                      options: [
+                        { v: "name", l: "Name (A–Z)" },
+                        { v: "price", l: "Price: low to high" },
+                      ],
+                    },
+                  ]}
+                />
+
+                {bikesLoading ? (
+                  <EmptyList label="Loading bikes…" />
+                ) : bikesErr ? (
+                  <EmptyList label={bikesErr} />
+                ) : list.length === 0 ? (
+                  <EmptyList label="No bikes match these filters" />
+                ) : (
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {list.map((b) => (
+                      <div
+                        key={b.id}
+                        className="br-card relative overflow-hidden rounded-2xl shadow-sm transition"
+                      >
+                        <div className="relative">
+                          <BikeImage bike={b} className="h-44" />
+                          <div className="absolute right-3 top-3">
+                            <StatusTag
+                              meta={
+                                b.approval === "PENDING"
+                                  ? {
+                                      label: "Pending",
+                                      fg: "#b45309",
+                                      bg: "#fef3c7",
+                                    }
+                                  : b.approval === "REJECTED"
+                                    ? {
+                                        label: "Rejected",
+                                        fg: "#b91c1c",
+                                        bg: "#fee2e2",
+                                      }
+                                    : b.status === "AVAILABLE"
+                                      ? {
+                                          label: "Available",
+                                          fg: "#15803d",
+                                          bg: "#dcfce7",
+                                        }
+                                      : {
+                                          label: b.status,
+                                          fg: "#475569",
+                                          bg: "#e2e8f0",
+                                        }
+                              }
+                            />
+                          </div>
+                        </div>
+                        <div className="p-4">
+                          <div className="flex items-start justify-between gap-2">
+                            <h3 className="br-display text-base font-bold">
+                              {b.name}
+                            </h3>
+                            <span className="br-display shrink-0 text-sm font-bold text-[var(--brand-strong)]">
+                              {inr(b.price)}/d
+                            </span>
+                          </div>
+                          <p
+                            className="mt-0.5 text-xs"
+                            style={{ color: "var(--mute)" }}
+                          >
+                            Partner #{b.partnerId} · {b.trans || "—"}
+                          </p>
+                          <div className="mt-3 flex flex-wrap gap-1.5">
+                            <Chip>{b.cat}</Chip>
+                            <Chip>{b.cc ? `${b.cc}cc` : "EV"}</Chip>
+                            {b.reg && <Chip>{b.reg}</Chip>}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
         {/* Disputes */}
         {tab === "disputes" && (
           <>
@@ -824,9 +962,6 @@ export function AdminApp({
                     ded={ded}
                     onResolve={(outcome, note) => {
                       onResolveDispute(rental.id, ded.id, outcome, note);
-                      setFlash(
-                        `Charge ${outcome === "reversed" ? "reversed — renter refunded" : "upheld — charge stands"}.`,
-                      );
                     }}
                   />
                 ))}
@@ -834,739 +969,33 @@ export function AdminApp({
             )}
           </>
         )}
-
-        {/* Verify Riders (KYC) */}
-        {tab === "kyc" && (
-          <KycReviewPage
-            rows={pending}
-            loading={kycLoading}
-            err={kycErr}
-            docErr={docErr}
-            onView={viewDoc}
-            onApprove={approveKyc}
-            onReject={rejectKyc}
-          />
-        )}
-
-        {/* Dealers — manage + block */}
-        {tab === "allDealers" &&
-          (() => {
-            const cities = [
-              "All",
-              ...new Set(DEALERS.map((d) => d.city || "Pune")),
-            ];
-            const list = DEALERS.filter((d) => {
-              const hay = `${d.name} ${d.area} ${d.tagline}`.toLowerCase();
-              if (fD.q && !hay.includes(fD.q.toLowerCase())) return false;
-              if (fD.city !== "All" && (d.city || "Pune") !== fD.city)
-                return false;
-              if (fD.status === "Active" && blockedD.has(d.id)) return false;
-              if (fD.status === "Blocked" && !blockedD.has(d.id)) return false;
-              return true;
-            }).sort((a, b) =>
-              fD.sort === "rating"
-                ? b.rating - a.rating
-                : fD.sort === "fleet"
-                  ? b.bikes - a.bikes
-                  : a.name.localeCompare(b.name),
-            );
-            return (
-              <>
-                <h2 className="br-display mb-4 text-lg font-bold">Dealers</h2>
-                <AdminToolbar
-                  q={fD.q}
-                  setQ={(v) => setFD({ ...fD, q: v })}
-                  placeholder="Search dealers by name, area or description"
-                  count={list.length}
-                  total={DEALERS.length}
-                  onClear={() =>
-                    setFD({ q: "", city: "All", status: "All", sort: "name" })
-                  }
-                  selects={[
-                    {
-                      label: "Status",
-                      value: fD.status,
-                      onChange: (v) => setFD({ ...fD, status: v }),
-                      options: ["All", "Active", "Blocked"],
-                    },
-                    {
-                      label: "City",
-                      value: fD.city,
-                      onChange: (v) => setFD({ ...fD, city: v }),
-                      options: cities,
-                    },
-                    {
-                      label: "Sort by",
-                      value: fD.sort,
-                      onChange: (v) => setFD({ ...fD, sort: v }),
-                      options: [
-                        { v: "name", l: "Name (A–Z)" },
-                        { v: "rating", l: "Highest rated" },
-                        { v: "fleet", l: "Largest fleet" },
-                      ],
-                    },
-                  ]}
-                />
-                {list.length === 0 ? (
-                  <EmptyList label="No dealers match these filters" />
-                ) : (
-                  <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                    {list.map((d) => {
-                      const blocked = blockedD.has(d.id);
-                      return (
-                        <div
-                          key={d.id}
-                          className="br-card rounded-2xl p-5 shadow-sm"
-                          style={
-                            blocked ? { borderColor: "#fca5a5" } : undefined
-                          }
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex items-center gap-3">
-                              <span
-                                className="grid h-11 w-11 shrink-0 place-items-center rounded-xl br-display text-sm font-bold text-white"
-                                style={{
-                                  background: blocked
-                                    ? "#94a3b8"
-                                    : "linear-gradient(135deg,var(--brand),var(--brand-2))",
-                                }}
-                              >
-                                {d.name
-                                  .split(" ")
-                                  .map((w) => w[0])
-                                  .slice(0, 2)
-                                  .join("")}
-                              </span>
-                              <div className="min-w-0">
-                                <p className="br-display truncate text-sm font-bold">
-                                  {d.name}
-                                </p>
-                                <p
-                                  className="truncate text-xs"
-                                  style={{ color: "var(--mute)" }}
-                                >
-                                  {d.area}
-                                </p>
-                              </div>
-                            </div>
-                            <StatusTag
-                              meta={
-                                blocked
-                                  ? {
-                                      label: "Blocked",
-                                      fg: "#b91c1c",
-                                      bg: "#fee2e2",
-                                    }
-                                  : {
-                                      label: "Active",
-                                      fg: "#15803d",
-                                      bg: "#dcfce7",
-                                    }
-                              }
-                            />
-                          </div>
-                          <div
-                            className="mt-3 flex flex-col gap-1.5 text-xs"
-                            style={{ color: "#3a4d55" }}
-                          >
-                            <span className="flex items-center gap-1.5">
-                              <Star size={13} fill="#f5a623" strokeWidth={0} />{" "}
-                              {d.rating} rating
-                            </span>
-                            <span className="flex items-center gap-1.5">
-                              <Bike
-                                size={13}
-                                style={{ color: "var(--brand)" }}
-                              />{" "}
-                              {d.bikes} bikes listed
-                            </span>
-                            <span className="flex items-center gap-1.5">
-                              <TrendingUp
-                                size={13}
-                                style={{ color: "var(--brand)" }}
-                              />{" "}
-                              {d.rentals} rentals
-                            </span>
-                            <span className="flex items-center gap-1.5">
-                              <Clock3
-                                size={13}
-                                style={{ color: "var(--brand)" }}
-                              />{" "}
-                              Responds in {d.response}
-                            </span>
-                          </div>
-                          <button
-                            onClick={() => {
-                              toggle(setBlockedD)(d.id);
-                              setFlash(
-                                `${d.name} ${blocked ? "unblocked" : "blocked"}.`,
-                              );
-                            }}
-                            className="br-display mt-4 w-full rounded-xl py-2.5 text-xs font-semibold"
-                            style={
-                              blocked
-                                ? {
-                                    border: "1.5px solid var(--brand)",
-                                    color: "var(--brand)",
-                                    background: "#fff",
-                                  }
-                                : {
-                                    border: "1.5px solid #dc2626",
-                                    color: "#dc2626",
-                                    background: "#fff",
-                                  }
-                            }
-                          >
-                            {blocked ? "Unblock dealer" : "Block dealer"}
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </>
-            );
-          })()}
-
-        {/* Customers — details + block (real data from /api/v1/admin/customers) */}
-        {tab === "customers" &&
-          (() => {
-            const cities = [
-              "All",
-              ...new Set(
-                custRows.map((c) => c.city).filter((x) => x && x !== "—"),
-              ),
-            ];
-            const list = custRows
-              .filter((c) => {
-                const hay =
-                  `${c.name} ${c.email} ${c.phone} ${c.city}`.toLowerCase();
-                if (fC.q && !hay.includes(fC.q.toLowerCase())) return false;
-                if (fC.city !== "All" && c.city !== fC.city) return false;
-                if (fC.status === "Active" && c.blocked) return false;
-                if (fC.status === "Blocked" && !c.blocked) return false;
-                return true;
-              })
-              .sort((a, b) =>
-                fC.sort === "rentals"
-                  ? b.rentals - a.rentals
-                  : fC.sort === "recent"
-                    ? b.customerId - a.customerId
-                    : a.name.localeCompare(b.name),
-              );
-            return (
-              <>
-                <h2 className="br-display mb-4 text-lg font-bold">
-                  Customer Details
-                </h2>
-                <AdminToolbar
-                  q={fC.q}
-                  setQ={(v) => setFC({ ...fC, q: v })}
-                  placeholder="Search customers by name, email, phone or city"
-                  count={list.length}
-                  total={CUSTOMERS_SEED.length}
-                  onClear={() =>
-                    setFC({ q: "", city: "All", status: "All", sort: "name" })
-                  }
-                  selects={[
-                    {
-                      label: "Status",
-                      value: fC.status,
-                      onChange: (v) => setFC({ ...fC, status: v }),
-                      options: ["All", "Active", "Blocked"],
-                    },
-                    {
-                      label: "City",
-                      value: fC.city,
-                      onChange: (v) => setFC({ ...fC, city: v }),
-                      options: cities,
-                    },
-                    {
-                      label: "Sort by",
-                      value: fC.sort,
-                      onChange: (v) => setFC({ ...fC, sort: v }),
-                      options: [
-                        { v: "name", l: "Name (A–Z)" },
-                        { v: "rentals", l: "Most rentals" },
-                        { v: "recent", l: "Newest first" },
-                      ],
-                    },
-                  ]}
-                />
-                {list.length === 0 ? (
-                  <EmptyList label="No customers match these filters" />
-                ) : (
-                  <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                    {list.map((c) => {
-                      const blocked = blockedC.has(c.id);
-                      return (
-                        <div
-                          key={c.id}
-                          className="br-card rounded-2xl p-5 shadow-sm"
-                          style={
-                            blocked ? { borderColor: "#fca5a5" } : undefined
-                          }
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex items-center gap-3">
-                              <span
-                                className="grid h-11 w-11 shrink-0 place-items-center rounded-full br-display text-sm font-bold text-white"
-                                style={{
-                                  background: blocked
-                                    ? "#94a3b8"
-                                    : "var(--teal)",
-                                }}
-                              >
-                                {c.name
-                                  .split(" ")
-                                  .map((w) => w[0])
-                                  .slice(0, 2)
-                                  .join("")}
-                              </span>
-                              <div className="min-w-0">
-                                <p className="br-display truncate text-sm font-bold">
-                                  {c.name}
-                                </p>
-                                <p
-                                  className="text-xs"
-                                  style={{ color: "var(--mute)" }}
-                                >
-                                  Joined {c.joined}
-                                </p>
-                              </div>
-                            </div>
-                            <StatusTag
-                              meta={
-                                blocked
-                                  ? {
-                                      label: "Blocked",
-                                      fg: "#b91c1c",
-                                      bg: "#fee2e2",
-                                    }
-                                  : {
-                                      label: "Active",
-                                      fg: "#15803d",
-                                      bg: "#dcfce7",
-                                    }
-                              }
-                            />
-                          </div>
-                          <div
-                            className="mt-3 flex flex-col gap-1.5 text-xs"
-                            style={{ color: "#3a4d55" }}
-                          >
-                            <span className="flex items-center gap-1.5">
-                              <Mail
-                                size={13}
-                                style={{ color: "var(--brand)" }}
-                              />{" "}
-                              {c.email}
-                            </span>
-                            <span className="flex items-center gap-1.5">
-                              <Phone
-                                size={13}
-                                style={{ color: "var(--brand)" }}
-                              />{" "}
-                              +91 {c.phone}
-                            </span>
-                            <span className="flex items-center gap-1.5">
-                              <MapPin
-                                size={13}
-                                style={{ color: "var(--brand)" }}
-                              />{" "}
-                              {c.city}
-                            </span>
-                            <span className="flex items-center gap-1.5">
-                              <Bike
-                                size={13}
-                                style={{ color: "var(--brand)" }}
-                              />{" "}
-                              {c.rentals} completed rentals
-                            </span>
-                          </div>
-                          <button
-                            onClick={() => {
-                              toggle(setBlockedC)(c.id);
-                              setFlash(
-                                `${c.name} ${blocked ? "unblocked" : "blocked"}.`,
-                              );
-                            }}
-                            className="br-display mt-4 w-full rounded-xl py-2.5 text-xs font-semibold"
-                            style={
-                              blocked
-                                ? {
-                                    border: "1.5px solid var(--brand)",
-                                    color: "var(--brand)",
-                                    background: "#fff",
-                                  }
-                                : {
-                                    border: "1.5px solid #dc2626",
-                                    color: "#dc2626",
-                                    background: "#fff",
-                                  }
-                            }
-                          >
-                            {blocked ? "Unblock customer" : "Block customer"}
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </>
-            );
-          })()}
-
-        {/* Bikes — manage + block */}
-        {tab === "allBikes" &&
-          (() => {
-            const cats = ["All", ...new Set(BIKES.map((b) => b.cat))];
-            const list = BIKES.filter((b) => {
-              const hay = `${b.name} ${b.mf} ${b.cat}`.toLowerCase();
-              if (fB.q && !hay.includes(fB.q.toLowerCase())) return false;
-              if (fB.cat !== "All" && b.cat !== fB.cat) return false;
-              if (fB.status === "Active" && blockedB.has(b.id)) return false;
-              if (fB.status === "Blocked" && !blockedB.has(b.id)) return false;
-              return true;
-            }).sort((a, b) =>
-              fB.sort === "price"
-                ? a.price - b.price
-                : fB.sort === "rating"
-                  ? b.rating - a.rating
-                  : a.name.localeCompare(b.name),
-            );
-            return (
-              <>
-                <h2 className="br-display mb-4 text-lg font-bold">Bikes</h2>
-                <AdminToolbar
-                  q={fB.q}
-                  setQ={(v) => setFB({ ...fB, q: v })}
-                  placeholder="Search bikes by name, manufacturer or category"
-                  count={list.length}
-                  total={BIKES.length}
-                  onClear={() =>
-                    setFB({ q: "", cat: "All", status: "All", sort: "name" })
-                  }
-                  selects={[
-                    {
-                      label: "Status",
-                      value: fB.status,
-                      onChange: (v) => setFB({ ...fB, status: v }),
-                      options: ["All", "Active", "Blocked"],
-                    },
-                    {
-                      label: "Category",
-                      value: fB.cat,
-                      onChange: (v) => setFB({ ...fB, cat: v }),
-                      options: cats,
-                    },
-                    {
-                      label: "Sort by",
-                      value: fB.sort,
-                      onChange: (v) => setFB({ ...fB, sort: v }),
-                      options: [
-                        { v: "name", l: "Name (A–Z)" },
-                        { v: "price", l: "Price: low to high" },
-                        { v: "rating", l: "Highest rated" },
-                      ],
-                    },
-                  ]}
-                />
-                {list.length === 0 ? (
-                  <EmptyList label="No bikes match these filters" />
-                ) : (
-                  <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                    {list.map((b) => {
-                      const blocked = blockedB.has(b.id);
-                      return (
-                        <div
-                          key={b.id}
-                          className="br-card overflow-hidden rounded-2xl shadow-sm"
-                          style={
-                            blocked ? { borderColor: "#fca5a5" } : undefined
-                          }
-                        >
-                          <div className="relative">
-                            <BikeImage bike={b} className="h-24" />
-                            {blocked && (
-                              <span
-                                className="absolute inset-0"
-                                style={{ background: "rgba(255,255,255,.55)" }}
-                              />
-                            )}
-                          </div>
-                          <div className="p-4">
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="min-w-0">
-                                <p className="br-display truncate text-sm font-bold">
-                                  {b.name}
-                                </p>
-                                <p
-                                  className="text-xs"
-                                  style={{ color: "var(--mute)" }}
-                                >
-                                  {b.mf} · {b.cat}
-                                </p>
-                              </div>
-                              <StatusTag
-                                meta={
-                                  blocked
-                                    ? {
-                                        label: "Blocked",
-                                        fg: "#b91c1c",
-                                        bg: "#fee2e2",
-                                      }
-                                    : {
-                                        label: "Active",
-                                        fg: "#15803d",
-                                        bg: "#dcfce7",
-                                      }
-                                }
-                              />
-                            </div>
-                            <div className="mt-2 flex flex-wrap gap-1.5">
-                              <Chip>
-                                <Gauge size={12} />
-                                {b.cc ? `${b.cc}cc` : "EV"}
-                              </Chip>
-                              <Chip>{inr(b.price)}/day</Chip>
-                              <Chip>
-                                <Star
-                                  size={11}
-                                  fill="#f5a623"
-                                  strokeWidth={0}
-                                />
-                                {b.rating}
-                              </Chip>
-                            </div>
-                            <button
-                              onClick={() => {
-                                toggle(setBlockedB)(b.id);
-                                setFlash(
-                                  `${b.name} ${blocked ? "unblocked" : "blocked"}.`,
-                                );
-                              }}
-                              className="br-display mt-3 w-full rounded-xl py-2 text-xs font-semibold"
-                              style={
-                                blocked
-                                  ? {
-                                      border: "1.5px solid var(--brand)",
-                                      color: "var(--brand)",
-                                      background: "#fff",
-                                    }
-                                  : {
-                                      border: "1.5px solid #dc2626",
-                                      color: "#dc2626",
-                                      background: "#fff",
-                                    }
-                              }
-                            >
-                              {blocked ? "Unblock bike" : "Block bike"}
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </>
-            );
-          })()}
-
-        {/* Admins */}
       </div>
 
       {reviewBike && (
         <BikeReviewModal
           bike={reviewBike}
           onClose={() => setReviewBike(null)}
-          onDecide={decideBike}
+          onApprove={(id) => {
+            decideBike(id, "approve");
+            setReviewBike(null);
+          }}
           onReject={askRejectBike}
         />
       )}
+
       {rejectTarget && (
         <RejectReasonModal
-          kind={rejectTarget.kind}
-          name={rejectTarget.name}
+          targetName={rejectTarget.name}
           onClose={() => setRejectTarget(null)}
           onConfirm={confirmReject}
         />
       )}
+
       {showAddAdmin && (
         <AddAdminModal
-          existingEmails={admins.map((a) => a.email)}
           onClose={() => setShowAddAdmin(false)}
-          onCreate={addAdmin}
+          onAdd={addAdmin}
         />
-      )}
-
-      {/* Admin team — opened from the profile menu's "Show admins" */}
-      {showAdmins && (
-        <div
-          className="fixed inset-0 grid place-items-center px-4 py-6"
-          style={{ zIndex: 80 }}
-          role="dialog"
-          aria-modal="true"
-        >
-          <div
-            className="absolute inset-0"
-            onClick={() => setShowAdmins(false)}
-            style={{
-              background: "rgba(15,39,51,.45)",
-              backdropFilter: "blur(6px)",
-              WebkitBackdropFilter: "blur(6px)",
-            }}
-          />
-          <div className="br-card br-fade-up relative flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl shadow-2xl">
-            <div
-              className="flex shrink-0 items-center justify-between gap-3 px-5 py-4"
-              style={{ borderBottom: "1px solid var(--line)" }}
-            >
-              <div>
-                <h3 className="br-display text-base font-bold">Admin Team</h3>
-                <p className="text-xs" style={{ color: "var(--mute)" }}>
-                  {admins.length} {admins.length === 1 ? "admin" : "admins"}{" "}
-                  with panel access
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => {
-                    setShowAdmins(false);
-                    setShowAddAdmin(true);
-                  }}
-                  className="br-btn br-display flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold"
-                >
-                  <UserPlus size={15} /> Add Admin
-                </button>
-                <button
-                  onClick={() => setShowAdmins(false)}
-                  aria-label="Close"
-                  className="grid h-8 w-8 place-items-center rounded-lg"
-                  style={{ background: "var(--form-bg)" }}
-                >
-                  <X size={16} style={{ color: "var(--mute)" }} />
-                </button>
-              </div>
-            </div>
-            <div className="br-scroll min-h-0 flex-1 overflow-y-auto p-5">
-              {adminsLoading ? (
-                <p className="text-sm" style={{ color: "var(--mute)" }}>
-                  Loading admins…
-                </p>
-              ) : admins.length === 0 ? (
-                <p className="text-sm" style={{ color: "var(--mute)" }}>
-                  No admins yet.
-                </p>
-              ) : (
-                <div className="grid gap-4 sm:grid-cols-2">
-                  {admins.map((a) => (
-                    <div
-                      key={a.id}
-                      className="br-card flex flex-col rounded-2xl p-5 shadow-sm"
-                    >
-                      <div className="flex items-center gap-3">
-                        <span
-                          className="grid h-11 w-11 place-items-center rounded-xl br-display text-sm font-bold text-white"
-                          style={{
-                            background: a.superAdmin
-                              ? "linear-gradient(135deg,#b91c1c,#ef4444)"
-                              : "linear-gradient(135deg,var(--brand),var(--brand-2))",
-                          }}
-                        >
-                          {a.name
-                            .split(" ")
-                            .map((w) => w[0])
-                            .slice(0, 2)
-                            .join("")}
-                        </span>
-                        <div className="min-w-0">
-                          <p className="br-display truncate text-sm font-bold">
-                            {a.name}
-                          </p>
-                          <p
-                            className="truncate text-xs"
-                            style={{ color: "var(--mute)" }}
-                          >
-                            {a.designation || "Admin"}
-                          </p>
-                        </div>
-                        {a.superAdmin && (
-                          <span
-                            className="ml-auto shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold"
-                            style={{ background: "#fee2e2", color: "#b91c1c" }}
-                          >
-                            Super Admin
-                          </span>
-                        )}
-                      </div>
-                      <div
-                        className="mt-3 flex flex-col gap-1.5 text-xs"
-                        style={{ color: "#3a4d55" }}
-                      >
-                        <span className="flex items-center gap-1.5">
-                          <Mail size={13} style={{ color: "var(--brand)" }} />{" "}
-                          {a.email}
-                        </span>
-                        {(a.dept || a.empId) && (
-                          <span className="flex items-center gap-1.5">
-                            <Briefcase
-                              size={13}
-                              style={{ color: "var(--brand)" }}
-                            />{" "}
-                            {[a.dept, a.empId].filter(Boolean).join(" · ")}
-                          </span>
-                        )}
-                        <span className="flex items-center gap-1.5">
-                          <Calendar
-                            size={13}
-                            style={{ color: "var(--brand)" }}
-                          />{" "}
-                          Added {a.added}
-                          {a.twofa ? " · 2FA on" : ""}
-                        </span>
-                      </div>
-                      <div className="mt-2.5 flex flex-wrap gap-1">
-                        {a.access.map((ac) => (
-                          <span
-                            key={ac}
-                            className="rounded-md px-1.5 py-0.5 text-[10px] font-semibold"
-                            style={{
-                              background: "var(--form-bg)",
-                              color: "var(--brand-strong)",
-                            }}
-                          >
-                            {ac}
-                          </span>
-                        ))}
-                      </div>
-                      {a.superAdmin ? (
-                        <p
-                          className="mt-4 text-center text-[11px]"
-                          style={{ color: "var(--mute)" }}
-                        >
-                          The super admin can't be removed.
-                        </p>
-                      ) : (
-                        <button
-                          onClick={() => removeAdmin(a.id)}
-                          className="br-display mt-4 w-full rounded-xl py-2 text-xs font-semibold"
-                          style={{
-                            border: "1.5px solid #dc2626",
-                            color: "#dc2626",
-                            background: "#fff",
-                          }}
-                        >
-                          Remove access
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
       )}
     </div>
   );

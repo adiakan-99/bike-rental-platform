@@ -191,6 +191,39 @@ public class BikeServicesImpl implements BikeServices {
 
     @Override
     @Transactional
+    public Page<AdminBikeRowDto> getAllBikesForAdmin(Pageable pageable) {
+        return bikeRepository.findByDeletedAtIsNull(pageable).map(this::toAdminRow);
+    }
+
+    private AdminBikeRowDto toAdminRow(Bike b) {
+        BikeDetails d = b.getBikeDetails();
+        List<BikeImage> imgs = b.getBikeImages() == null ? List.of() : b.getBikeImages();
+        String primary = imgs.stream()
+                .filter(i -> Boolean.TRUE.equals(i.getIsPrimary()))
+                .map(BikeImage::getImageUrl)
+                .findFirst()
+                .orElseGet(() -> imgs.stream().map(BikeImage::getImageUrl).findFirst().orElse(null));
+
+        return AdminBikeRowDto.builder()
+                .bikeId(b.getBikeId())
+                .partnerId(b.getPartnerId())
+                .registrationNumber(b.getRegistrationNumber())
+                .manufacturer(b.getManufacturer())
+                .model(b.getModel())
+                .category(d != null ? d.getBikeCategory() : null)
+                .engineCc(d != null ? d.getEngineCc() : null)
+                .transmission(d != null ? d.getTransmission() : null)
+                .hourlyRate(b.getHourlyRate())
+                .securityDeposit(b.getSecurityDeposit())
+                .bikeStatus(b.getBikeStatus())
+                .approvalStatus(b.getApprovalStatus())
+                .primaryImageUrl(primary)
+                .createdAt(b.getCreatedAt())
+                .build();
+    }
+
+    @Override
+    @Transactional
     public FleetListingDto updateOperationalDetails(Integer userId, Integer bikeId,
             BikeOperationalUpdateDto requestDto) {
 

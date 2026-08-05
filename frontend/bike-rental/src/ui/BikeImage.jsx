@@ -24,9 +24,16 @@ export function BikeImage({ bike, className = "" }) {
         <>
           <div
             className="absolute inset-0 opacity-20"
-            style={{ background: "radial-gradient(120% 90% at 20% 15%, #fff, transparent 55%)" }}
+            style={{
+              background:
+                "radial-gradient(120% 90% at 20% 15%, #fff, transparent 55%)",
+            }}
           />
-          <Bike className="mb-2 text-white/85" style={{ width: "45%", height: "45%" }} strokeWidth={1.1} />
+          <Bike
+            className="mb-2 text-white/85"
+            style={{ width: "45%", height: "45%" }}
+            strokeWidth={1.1}
+          />
         </>
       )}
     </div>

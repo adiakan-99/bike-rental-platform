@@ -13,6 +13,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public interface BikeServices {
+    Page<AdminBikeRowDto> getAllBikesForAdmin(Pageable pageable);
+
     FleetListingDto createBikeListing(Integer userId, BikeListingRequestDto requestDto);
 
     FleetListingDto updateBikeListing(Integer userId, Integer bikeId, BikeListingRequestDto requestDto);
@@ -29,7 +31,8 @@ public interface BikeServices {
 
     BikeAdminActionResponseDto reviewBikeListing(Integer userId, Integer bikeId, BikeAdminReviewRequestDto requestDto);
 
-    Page<BikeCardDto> browseBike(String city, LocalDateTime startDate, LocalDateTime endDate, String manufacturer, String category, BigDecimal minPrice, BigDecimal maxPrice, Pageable pageable);
+    Page<BikeCardDto> browseBike(String city, LocalDateTime startDate, LocalDateTime endDate, String manufacturer,
+            String category, BigDecimal minPrice, BigDecimal maxPrice, Pageable pageable);
 
     BikeDetailDto getBikeDetailById(Integer bikeId);
 

@@ -1,6 +1,7 @@
 package com.bikerental.bike_service.controller;
 
 import com.bikerental.bike_service.dto.request.BikeAdminReviewRequestDto;
+import com.bikerental.bike_service.dto.response.AdminBikeRowDto;
 import com.bikerental.bike_service.dto.response.BikeAdminActionResponseDto;
 import com.bikerental.bike_service.dto.response.PendingBikeDto;
 import com.bikerental.bike_service.service.BikeServices;
@@ -27,14 +28,21 @@ public class BikeAdminController {
     }
 
     @GetMapping("/pending")
-    public ResponseEntity<Page<PendingBikeDto>> getPendingBikeList(@ParameterObject @PageableDefault(page = 0, size = 10) Pageable pageable) {
+    public ResponseEntity<Page<PendingBikeDto>> getPendingBikeList(
+            @ParameterObject @PageableDefault(page = 0, size = 10) Pageable pageable) {
         Page<PendingBikeDto> pendingBikes = bikeServices.getPendingBikeList(pageable);
         return ResponseEntity.ok(pendingBikes);
     }
 
+    @GetMapping("/bikes")
+    public ResponseEntity<Page<AdminBikeRowDto>> getAllBikes(
+            @ParameterObject @PageableDefault(page = 0, size = 50) Pageable pageable) {
+        return ResponseEntity.ok(bikeServices.getAllBikesForAdmin(pageable));
+    }
+
     @PutMapping("/review/{id}")
     public ResponseEntity<BikeAdminActionResponseDto> reviewBikeList(@PathVariable("id") Integer id,
-                                                                     @Valid @RequestBody BikeAdminReviewRequestDto requestDto) {
+            @Valid @RequestBody BikeAdminReviewRequestDto requestDto) {
         Integer userId = getAuthenticatedUserId();
 
         return ResponseEntity.ok(bikeServices.reviewBikeListing(userId, id, requestDto));
