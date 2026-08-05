@@ -11,7 +11,6 @@ import {
   History,
   Lock,
   LogOut,
-  Search,
   ShieldCheck,
   User,
   UserPlus,
@@ -33,7 +32,6 @@ export function Navbar({
   onMyFleet,
   onPartner,
   onAdmin,
-  onSearch,
   onAddAdmin,
   onShowAdmins,
   onProfile,
@@ -188,21 +186,14 @@ export function Navbar({
 
           <div className="flex items-center gap-2 sm:gap-3">
             {/* 2-3 primary links stay visible on desktop (hybrid pattern) */}
-            {!isAdmin && !suspended && (
-              <button
-                onClick={onSearch}
-                className="br-nav-link hidden text-sm font-medium lg:block"
-              >
-                Search Bikes
-              </button>
-            )}
+
             <button
               onClick={() => onAbout?.()}
               className="br-nav-link hidden text-sm font-medium lg:block"
             >
               About &amp; Contact
             </button>
-            {isCustomer && (
+            {session && isCustomer && (
               <button
                 onClick={onRentals}
                 className="br-nav-link hidden items-center gap-1.5 text-sm font-medium lg:flex"
@@ -220,7 +211,7 @@ export function Navbar({
                 Login
               </button>
             )}
-            {!isAdmin && isPartner && !isCustomer && (
+            {!isAdmin && isPartner && (
               <button
                 onClick={onDealerPortal}
                 className="br-btn br-display flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold sm:px-5"
@@ -512,14 +503,6 @@ export function Navbar({
                             onClick={onWishlist}
                           />
                         </Group>
-                        <Divider />
-                        <Group label="Explore">
-                          <Item
-                            icon={Search}
-                            label="Search Bikes"
-                            onClick={onLogo}
-                          />
-                        </Group>
                       </>
                     )}
 
@@ -540,14 +523,7 @@ export function Navbar({
                             onClick={onRegister}
                           />
                         </Group>
-                        <Divider />
-                        <Group label="Explore">
-                          <Item
-                            icon={Search}
-                            label="Search Bikes"
-                            onClick={onLogo}
-                          />
-                        </Group>
+
                         <Divider />
                         <Group label="Hosting">
                           <Item

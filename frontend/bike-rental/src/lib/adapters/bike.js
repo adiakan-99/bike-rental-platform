@@ -171,6 +171,11 @@ export const pendingBikeDtoToRow = (d, partnerLookup = {}) => {
     docs: [
       d.rcUploadUrl && { type: "RC book", file: d.rcUploadUrl, kind: kindOf(d.rcUploadUrl) },
       d.pucUploadUrl && { type: "PUC", file: d.pucUploadUrl, kind: kindOf(d.pucUploadUrl) },
+      d.insurance?.insuranceUploadUrl && {
+        type: "Insurance",
+        file: d.insurance.insuranceUploadUrl,
+        kind: kindOf(d.insurance.insuranceUploadUrl),
+      },
     ].filter(Boolean),
     insurance: d.insurance,
     images: (d.images || []).map((i) => i.imageUrl),
@@ -205,6 +210,7 @@ export const formToListingDto = (v, { photoUrls = [], certUrls = {} } = {}) => (
     policyProvider: v.insuranceProvider?.trim(),
     policyHolderName: v.insuranceHolder?.trim(),
     expiryDate: v.insuranceExpiry,
+    insuranceUploadUrl: certUrls.insurance,
   },
   bikeDetails: {
     bikeCategory: v.cat,

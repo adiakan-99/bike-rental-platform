@@ -461,43 +461,34 @@ export default function App() {
   //     ),
   //   );
   const editListing = async (id, form) => {
-    // Determine if this update is purely pricing/operational or requires a full document re-review
-    const existingListing = myListings.find((l) => l.id === id);
-    const priceOnly =
-      !form._photoUrls?.length &&
-      !form._certUrls?.rc &&
-      !form._certUrls?.puc &&
-      form.reg === existingListing?.reg;
+    const existing = myListings.find((l) => l.id === id);
+    // Stored URLs come back presigned (…?X-Amz-Signature=…). Strip the query so
+    // we round-trip the object reference, not a signature that expires in 5h.
+    const bare = (u) => (u ? String(u).split("?")[0] : u);
 
     try {
-      const saved = priceOnly
-        ? await patchOperational(id, formToOperationalDto(form))
-        : fleetDtoToListing(
-            await updateBikeListing(
-              id,
-              formToListingDto(form, {
-                photoUrls: form._photoUrls,
-                certUrls: form._certUrls,
-              }),
-            ),
-          );
-
-      // Update the dealer's local list state with the response
+      const saved = fleetDtoToListing(
+        await updateBikeListing(
+          id,
+          formToListingDto(form, {
+            photoUrls: form._photoUrls?.length
+              ? form._photoUrls
+              : (existing?.images || []).map(bare),
+            certUrls: {
+              rc: form._certUrls?.rc || bare(existing?.certs?.rc?.url),
+              puc: form._certUrls?.puc || bare(existing?.certs?.puc?.url),
+              insurance:
+                form._certUrls?.insurance ||
+                bare(existing?.certs?.insurance?.file),
+            },
+          }),
+        ),
+      );
       setMyListings((prev) => prev.map((l) => (l.id === id ? saved : l)));
-
-      // Show appropriate notification message
-      if (typeof notify === "function") {
-        notify(
-          priceOnly ? "Pricing updated" : "Sent back for review",
-          "success",
-        );
-      }
+      notify("Listing updated", "success");
     } catch (e) {
-      if (typeof notify === "function") {
-        notify(e.userMessage || "Update failed", "error");
-      } else {
-        console.error("Edit listing error:", e);
-      }
+      console.error("Edit listing error:", e);
+      notify(e.userMessage || "Update failed", "error");
     }
   };
 

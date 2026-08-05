@@ -6,6 +6,8 @@ import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.Http;
 import io.minio.MinioClient;
 import io.minio.errors.MinioException;
+
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -19,16 +21,15 @@ public class StorageServiceImpl implements StorageServices {
     private final MinioClient minioClient;
 
     private final List<String> ALLOWED_FILE_TYPES = List.of(
-            "image/jpg", "image/jpeg", "image/png", "image/bmp", "image/gif", "image/svg+xml", "application/pdf"
-    );
+            "image/jpg", "image/jpeg", "image/png", "image/bmp", "image/gif", "image/svg+xml", "application/pdf");
 
-    @Value("${minio.url}")
+    @Value("${minio.public-url}")
     private String minioUrl;
 
     @Value("${minio.bucket-name}")
     private String minioBucketName;
 
-    public StorageServiceImpl(MinioClient minioClient) {
+    public StorageServiceImpl(@Qualifier("publicMinioClient") MinioClient minioClient) {
         this.minioClient = minioClient;
     }
 
@@ -56,8 +57,7 @@ public class StorageServiceImpl implements StorageServices {
                             .object(objectKey)
                             .expiry(15, TimeUnit.MINUTES)
                             .extraHeaders(Map.of("Content-Type", requestDto.getContentType()))
-                            .build()
-            );
+                            .build());
 
             String permanentFileUrl = minioUrl + "/" + minioBucketName + "/" + objectKey;
 
@@ -83,8 +83,7 @@ public class StorageServiceImpl implements StorageServices {
                             .bucket(minioBucketName)
                             .object(objectKey)
                             .expiry(5, TimeUnit.HOURS)
-                            .build()
-            );
+                            .build());
         } catch (MinioException e) {
             throw new RuntimeException(e);
         }

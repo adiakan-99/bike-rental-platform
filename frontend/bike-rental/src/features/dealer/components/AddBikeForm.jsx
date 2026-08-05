@@ -142,9 +142,9 @@ export function AddBikeForm({ onCancel, onSubmit, initial = null }) {
   //       Object.fromEntries(
   //         [
   //           ...Object.keys(v),
-  //           "insuranceNumber", 
+  //           "insuranceNumber",
   //           "insuranceProvider",
-  //           "insuranceHolder", 
+  //           "insuranceHolder",
   //           "photos",
   //           "rcFile",
   //           "rcExp",
@@ -195,63 +195,70 @@ export function AddBikeForm({ onCancel, onSubmit, initial = null }) {
   //   onSubmit(payload);
   // };
   const submit = async () => {
-  if (!valid) {
-    setT(
-      Object.fromEntries(
-        [
-          ...Object.keys(v),
-          "insuranceNumber",
-          "insuranceProvider",
-          "insuranceHolder",
-          "photos",
-          "rcFile",
-          "rcExp",
-          "insuranceFile",
-          "insuranceExp",
-          "pucFile",
-          "pucExp",
-        ].map((k) => [k, true]),
-      ),
-    );
-    return;
-  }
+    if (!valid) {
+      setT(
+        Object.fromEntries(
+          [
+            ...Object.keys(v),
+            "insuranceNumber",
+            "insuranceProvider",
+            "insuranceHolder",
+            "photos",
+            "rcFile",
+            "rcExp",
+            "insuranceFile",
+            "insuranceExp",
+            "pucFile",
+            "pucExp",
+          ].map((k) => [k, true]),
+        ),
+      );
+      return;
+    }
 
-  setBusy(true);
+    setBusy(true);
 
-  try {
-    // 1. Upload photos in parallel to storage
-    const photoUrls = await Promise.all(
-      photos.filter((p) => p.file).map((p) => uploadBikeFile(p.file, "BIKE_IMAGE"))
-    );
+    try {
+      // 1. Upload photos in parallel to storage
+      const photoUrls = await Promise.all(
+        photos
+          .filter((p) => p.file)
+          .map((p) => uploadBikeFile(p.file, "BIKE_IMAGE")),
+      );
 
-    // 2. Upload document certificates
-    const certUrls = {};
-    if (certs.rc.raw) certUrls.rc = await uploadBikeFile(certs.rc.raw, "RC");
-    if (certs.puc.raw) certUrls.puc = await uploadBikeFile(certs.puc.raw, "PUC");
-    if (certs.insurance.raw) certUrls.insurance = await uploadBikeFile(certs.insurance.raw, "INSURANCE");
+      // 2. Upload document certificates
+      const certUrls = {};
+      if (certs.rc.raw) certUrls.rc = await uploadBikeFile(certs.rc.raw, "RC");
+      if (certs.puc.raw)
+        certUrls.puc = await uploadBikeFile(certs.puc.raw, "PUC");
+      if (certs.insurance.raw)
+        certUrls.insurance = await uploadBikeFile(
+          certs.insurance.raw,
+          "INSURANCE",
+        );
 
-    // 3. Send payload with real uploaded URLs to onSubmit
-    await onSubmit({
-      ...v,
-      cc: Number(v.cc) || 0,
-      price: Number(v.price),
-      deposit: Number(v.deposit),
-      kmLimit: Number(v.kmLimit),
-      extraKm: Number(v.extraKm) || 0,
-      helmet,
-      specs,
-      rcExpiry: certs.rc.expiry,
-      pucExpiry: certs.puc.expiry,
-      insuranceExpiry: certs.insurance.expiry,
-      _photoUrls: photoUrls,
-      _certUrls: certUrls,
-    });
-  } catch (e) {
-    setT((p) => ({ ...p, _upload: e.userMessage || "Upload failed." }));
-  } finally {
-    setBusy(false);
-  }
-};
+      // 3. Send payload with real uploaded URLs to onSubmit
+      await onSubmit({
+        ...v,
+        cc: Number(v.cc) || 0,
+        price: Number(v.price),
+        deposit: Number(v.deposit),
+        kmLimit: Number(v.kmLimit),
+        extraKm: Number(v.extraKm) || 0,
+        helmet,
+        specs,
+        rcExpiry: certs.rc.expiry,
+        pucExpiry: certs.puc.expiry,
+        insuranceExpiry: certs.insurance.expiry,
+        _photoUrls: photoUrls,
+        _certUrls: certUrls,
+      });
+    } catch (e) {
+      setT((p) => ({ ...p, _upload: e.userMessage || "Upload failed." }));
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <div>
@@ -334,6 +341,7 @@ export function AddBikeForm({ onCancel, onSubmit, initial = null }) {
                   value={v.cc}
                   onChange={set("cc")}
                   onBlur={blur("cc")}
+                  onWheel={(e) => e.currentTarget.blur()}
                   placeholder="350"
                   className="br-input w-full text-sm"
                 />
@@ -407,6 +415,7 @@ export function AddBikeForm({ onCancel, onSubmit, initial = null }) {
                 value={v.price}
                 onChange={set("price")}
                 onBlur={blur("price")}
+                onWheel={(e) => e.currentTarget.blur()}
                 placeholder="599"
                 className="br-input w-full text-sm"
               />
@@ -424,6 +433,7 @@ export function AddBikeForm({ onCancel, onSubmit, initial = null }) {
                 value={v.deposit}
                 onChange={set("deposit")}
                 onBlur={blur("deposit")}
+                onWheel={(e) => e.currentTarget.blur()}
                 placeholder="1500"
                 className="br-input w-full text-sm"
               />
@@ -432,6 +442,7 @@ export function AddBikeForm({ onCancel, onSubmit, initial = null }) {
               <input
                 type="number"
                 value={v.kmLimit}
+                onWheel={(e) => e.currentTarget.blur()}
                 onChange={set("kmLimit")}
                 className="br-input w-full text-sm"
               />
@@ -748,7 +759,11 @@ export function AddBikeForm({ onCancel, onSubmit, initial = null }) {
                 : undefined
             }
           >
-            {busy ? "Uploading files..." : isEdit ? "Save changes" : "Submit for approval"}
+            {busy
+              ? "Uploading files..."
+              : isEdit
+                ? "Save changes"
+                : "Submit for approval"}
           </button>
           <button
             onClick={onCancel}

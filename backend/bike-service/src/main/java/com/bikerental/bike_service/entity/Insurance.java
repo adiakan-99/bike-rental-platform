@@ -30,4 +30,7 @@ public class Insurance {
 
     @Column(name = "expiry_date", nullable = false)
     private LocalDate expiryDate;
+
+    @Column(name = "insurance_upload_url", length = 500)
+    private String insuranceUploadUrl;
 }

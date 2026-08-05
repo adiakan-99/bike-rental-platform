@@ -70,13 +70,13 @@ export const deleteBikeListing = (id) =>
 
 // PATCH /partner/{id}/status — AVAILABLE | RENTED | MAINTENANCE | INACTIVE
 export const updateBikeStatus = (id, bikeStatus) =>
-  bikeHttp.patch(`${BASE}/partner/${id}/status`, { bikeStatus }).then((r) => r.data);
+  bikeHttp.put(`${BASE}/partner/${id}/status`, { bikeStatus }).then((r) => r.data);
 
 // PATCH /partner/{id}/operational — price / deposit / services only.
 // Use THIS for a price change, not the full PUT above, so the listing doesn't
 // get knocked back into the approval queue for a ₹50 tweak.
 export const updateOperationalDetails = (id, patch) =>
-  bikeHttp.patch(`${BASE}/partner/${id}/operational`, patch).then((r) => r.data);
+  bikeHttp.put(`${BASE}/partner/${id}/operational`, patch).then((r) => r.data);
 
 /* ============ ADMIN (needs an ADMIN-role JWT) ============ */
 
